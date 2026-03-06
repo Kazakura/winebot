@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg: var(--tg-theme-bg-color, #fff);
+            --text: var(--tg-theme-text-color, #000);
+            --btn: var(--tg-theme-button-color, #248b9f);
+        }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; padding: 15px; display: none; }
+        .menu-item { 
+            padding: 15px; border-bottom: 1px solid rgba(0,0,0,0.1); 
+            cursor: pointer; display: flex; justify-content: space-between;
+        }
+        .back-btn { color: var(--btn); margin-bottom: 15px; cursor: pointer; display: none; font-weight: bold; }
+        #content img { max-width: 100%; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div id="back" class="back-btn">← Назад</div>
+    <div id="view"></div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        let data = {};
+        let history = [];
+
+        // Проверка входа только через ТГ
+        if (tg.initData === "") {
+            document.body.innerHTML = "Доступ только из Telegram";
+            document.body.style.display = "block";
+        } else {
+            document.body.style.display = "block";
+            tg.expand();
+            loadData();
+        }
+
+        async function loadData() {
+            const res = await fetch('articles.json');
+            data = await res.json();
+            renderLevel(data.items);
+        }
+
+        function renderLevel(items) {
+            const container = document.getElementById('view');
+            const backBtn = document.getElementById('back');
+            container.innerHTML = "";
+            backBtn.style.display = history.length > 0 ? "block" : "none";
+
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "menu-item";
+                div.innerHTML = `<span>${item.name}</span> ${item.type === 'folder' ? '<span>❯</span>' : ''}`;
+                div.onclick = () => {
+                    if (item.type === 'folder') {
+                        history.push(items);
+                        renderLevel(item.children);
+                    } else {
+                        history.push(items);
+                        renderArticle(item.content);
+                    }
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function renderArticle(content) {
+            document.getElementById('view').innerHTML = `<div id="content">${marked.parse(content)}</div>`;
+            document.getElementById('back').style.display = "block";
+        }
+
+        document.getElementById('back').onclick = () => {
+            const prev = history.pop();
+            renderLevel(prev);
+        };
+    </script>
+</body>
+</html>
