@@ -3,80 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wine App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+    
     <style>
         :root {
-            --bg: var(--tg-theme-bg-color, #fff);
-            --text: var(--tg-theme-text-color, #000);
-            --btn: var(--tg-theme-button-color, #248b9f);
+            --bg: var(--tg-theme-bg-color, #ffffff);
+            --text: var(--tg-theme-text-color, #222222);
+            --hint: var(--tg-theme-hint-color, #707579);
+            --link: var(--tg-theme-link-color, #3390ec);
+            --sec: var(--tg-theme-secondary-bg-color, #f4f4f5);
         }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; padding: 15px; display: none; }
+        body { 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            display: none; /* Ждем проверки TG */
+        }
+        .header { 
+            position: sticky; 
+            top: 0; 
+            background: var(--bg); 
+            padding: 15px; 
+            border-bottom: 1px solid var(--sec); 
+            z-index: 10; 
+            display: flex; 
+            align-items: center; 
+        }
+        .back-btn { 
+            color: var(--link); 
+            cursor: pointer; 
+            display: none; 
+            font-weight: 500; 
+            margin-right: 15px; 
+            font-size: 18px;
+        }
         .menu-item { 
-            padding: 15px; border-bottom: 1px solid rgba(0,0,0,0.1); 
-            cursor: pointer; display: flex; justify-content: space-between;
+            padding: 18px 15px; 
+            border-bottom: 0.5px solid var(--sec); 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            font-size: 17px;
         }
-        .back-btn { color: var(--btn); margin-bottom: 15px; cursor: pointer; display: none; font-weight: bold; }
-        #content img { max-width: 100%; border-radius: 8px; }
+        .menu-item:active { background: var(--sec); }
+        .chevron { color: var(--hint); font-size: 14px; }
+        
+        #content { padding: 15px; line-height: 1.6; font-size: 17px; }
+        #content img { 
+            max-width: 100%; 
+            border-radius: 12px; 
+            margin: 15px 0; 
+            display: block; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h1 { font-size: 1.4em; margin-bottom: 10px; }
+        .loading { text-align: center; padding: 50px; color: var(--hint); }
     </style>
 </head>
 <body>
-    <div id="back" class="back-btn">← Назад</div>
-    <div id="view"></div>
+    <div class="header">
+        <span id="back" class="back-btn">←</span>
+        <strong id="head-title">Загрузка...</strong>
+    </div>
+    <div id="view" class="loading">Загружаем данные из таблицы...</div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        let data = {};
+        // Твоя прямая ссылка на CSV
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv';
+
+        let rawData = [];
         let history = [];
 
-        // Проверка входа только через ТГ
+        // Инициализация
         if (tg.initData === "") {
-            document.body.innerHTML = "Доступ только из Telegram";
+            // Если открыли в браузере, а не в ТГ
+            document.body.innerHTML = "<div style='padding:50px; text-align:center;'>Пожалуйста, откройте это приложение внутри Telegram бота.</div>";
             document.body.style.display = "block";
         } else {
             document.body.style.display = "block";
-            tg.expand();
+            tg.expand(); // Развернуть на весь экран
             loadData();
         }
 
-        async function loadData() {
-            const res = await fetch('articles.json');
-            data = await res.json();
-            renderLevel(data.items);
+        // Загрузка данных
+        function loadData() {
+            Papa.parse(SHEET_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    rawData = results.data;
+                    renderMenu();
+                },
+                error: (err) => {
+                    document.getElementById('view').innerText = "Ошибка загрузки данных. Проверьте публикацию таблицы.";
+                }
+            });
         }
 
-        function renderLevel(items) {
+        // Главное меню (Список категорий)
+        function renderMenu() {
             const container = document.getElementById('view');
-            const backBtn = document.getElementById('back');
             container.innerHTML = "";
-            backBtn.style.display = history.length > 0 ? "block" : "none";
+            document.getElementById('back').style.display = "none";
+            document.getElementById('head-title').innerText = "Категории";
 
-            items.forEach(item => {
+            // Собираем уникальные категории из колонки Category
+            const categories = [...new Set(rawData.map(item => item.Category).filter(c => c))];
+            
+            categories.forEach(cat => {
                 const div = document.createElement('div');
                 div.className = "menu-item";
-                div.innerHTML = `<span>${item.name}</span> ${item.type === 'folder' ? '<span>❯</span>' : ''}`;
+                div.innerHTML = `<span>📂 ${cat}</span> <span class="chevron">❯</span>`;
                 div.onclick = () => {
-                    if (item.type === 'folder') {
-                        history.push(items);
-                        renderLevel(item.children);
-                    } else {
-                        history.push(items);
-                        renderArticle(item.content);
-                    }
+                    tg.HapticFeedback.impactOccurred('light');
+                    renderCategory(cat);
                 };
                 container.appendChild(div);
             });
         }
 
-        function renderArticle(content) {
-            document.getElementById('view').innerHTML = `<div id="content">${marked.parse(content)}</div>`;
+        // Список статей внутри категории
+        function renderCategory(catName) {
+            const container = document.getElementById('view');
+            container.innerHTML = "";
             document.getElementById('back').style.display = "block";
+            document.getElementById('head-title').innerText = catName;
+            
+            const articles = rawData.filter(i => i.Category === catName);
+            
+            articles.forEach(art => {
+                const div = document.createElement('div');
+                div.className = "menu-item";
+                div.innerHTML = `<span>📄 ${art.Title}</span> <span class="chevron">❯</span>`;
+                div.onclick = () => {
+                    tg.HapticFeedback.impactOccurred('light');
+                    renderArticle(art);
+                };
+                container.appendChild(div);
+            });
+            
+            // Сохраняем в историю путь назад к главному меню
+            history = [renderMenu];
         }
 
-        document.getElementById('back').onclick = () => {
-            const prev = history.pop();
-            renderLevel(prev);
-        };
-    </script>
-</body>
-</html>
+        // Сама статья
+        function renderArticle(art) {
+            const container = document.getElementById('view');
+            document.getElementById('head-title').innerText = art.Title;
+            document.getElementById('back').style.display = "block";
+            
+            // Превращаем Markdown в HTML
+            container.innerHTML = `<div id="content">${marked.parse(art.Content || '')}</div>`;
+            
+            // История:
