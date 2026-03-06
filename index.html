@@ -19,7 +19,6 @@
             margin: 0; padding: 0; 
             -webkit-tap-highlight-color: transparent;
         }
-        /* Header */
         .header { 
             position: sticky; top: 0; background: var(--bg); 
             padding: 10px 15px; border-bottom: 1px solid var(--sec); 
@@ -28,26 +27,30 @@
         #back { color: var(--link); cursor: pointer; display: none; font-size: 35px; margin-right: 15px; line-height: 1; }
         #title { font-size: 17px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Menu */
+        /* СТИЛИ ДЛЯ МЕНЮ */
         .cat-v { background: var(--sec); padding: 8px 15px; font-size: 11px; color: var(--hint); text-transform: uppercase; font-weight: bold; }
         .row-v { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; background: var(--bg); align-items: center; }
-        .row-v:active { background: var(--sec); }
-
-        /* Content */
+        
+        /* СТИЛИ ДЛЯ КОНТЕНТА (РАЗБЛОКИРОВКА ЗУМА) */
         #content { padding: 20px; line-height: 1.6; font-size: 18px; }
         #content img { 
             width: 100% !important; height: auto !important; 
             border-radius: 12px; margin: 15px 0; 
-            display: block; cursor: pointer;
+            display: block; 
+            cursor: pointer !important;
+            /* Принудительно разрешаем клики, даже если Word их запретил */
+            pointer-events: auto !important; 
+            position: relative;
+            z-index: 10;
         }
 
-        /* Fullscreen Zoom Overlay */
+        /* СЛОЙ УВЕЛИЧЕНИЯ */
         #zoom-wrap { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.98); z-index: 9999; 
+            background: rgba(0,0,0,0.98); z-index: 99999; 
             display: none; align-items: center; justify-content: center; 
         }
-        #zoom-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        #zoom-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
 
         .status-v { padding: 60px 20px; text-align: center; color: var(--hint); }
     </style>
@@ -73,76 +76,13 @@
         let database = [];
         tg.expand();
 
-        // 1. Загрузка данных
         async function init() {
             try {
                 const res = await fetch(SHEET_URL);
                 const text = await res.text();
                 const rows = text.split('\n').map(r => r.split(','));
                 const headers = rows[0].map(h => h.trim());
-                
                 database = rows.slice(1).map(row => {
                     let obj = {};
                     headers.forEach((h, i) => obj[h] = row[i] ? row[i].trim() : "");
-                    return obj;
-                }).filter(i => i.Title);
-                
-                showMain();
-            } catch (e) {
-                document.getElementById('app-view').innerHTML = "<div class='status-v'>Ошибка таблицы. Переопубликуйте CSV.</div>";
-            }
-        }
-
-        // 2. Главное меню
-        function showMain() {
-            const app = document.getElementById('app-view');
-            app.innerHTML = "";
-            document.getElementById('back').style.display = "none";
-            document.getElementById('title').innerText = "Обучение";
-
-            const categories = [...new Set(database.map(i => i.Category))];
-            categories.forEach(cat => {
-                const head = document.createElement('div');
-                head.className = 'cat-v'; head.innerText = cat;
-                app.appendChild(head);
-
-                database.filter(i => i.Category === cat).forEach(item => {
-                    const row = document.createElement('div');
-                    row.className = 'row-v';
-                    row.innerHTML = `<span>${item.Title}</span><span style="opacity:0.2">›</span>`;
-                    row.onclick = () => openContent(item.Folder, item.File, item.Title);
-                    app.appendChild(row);
-                });
-            });
-        }
-
-        // 3. Открытие статьи
-        async function openContent(folder, file, name) {
-            const app = document.getElementById('app-view');
-            app.innerHTML = "<div class='status-v'>Загрузка...</div>";
-            document.getElementById('back').style.display = "block";
-            document.getElementById('title').innerText = name;
-
-            try {
-                const res = await fetch(`${GITHUB_BASE}${folder}/${file}`);
-                const html = await res.text();
-                app.innerHTML = `<div id="content">${html}</div>`;
-                window.scrollTo(0,0);
-            } catch(e) { app.innerHTML = "Файл не найден."; }
-        }
-
-        // 4. Глобальный ЗУМ (Срабатывает на ЛЮБУЮ картинку)
-        document.addEventListener('click', function(e) {
-            if (e.target.tagName === 'IMG' && e.target.id !== 'zoom-img') {
-                const wrap = document.getElementById('zoom-wrap');
-                const img = document.getElementById('zoom-img');
-                img.src = e.target.src;
-                wrap.style.display = 'flex';
-                if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-            }
-        });
-
-        init();
-    </script>
-</body>
-</html>
+                    return obj
