@@ -1,78 +1,49 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wine Guide Zoom</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wine Test</title>
     <style>
-        /* Общие стили */
-        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #ffffff; color: #333; }
-        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
-        h1 { font-size: 24px; color: #1a1a1a; }
-        p { line-height: 1.6; font-size: 17px; }
+        body { font-family: sans-serif; padding: 20px; text-align: center; }
+        h1 { color: #333; }
+        
+        /* Контейнер для картинки */
+        .img-container { position: relative; display: inline-block; margin-top: 20px; }
+        
+        /* Маленькая картинка */
+        .thumb { width: 200px; border-radius: 10px; cursor: pointer; border: 2px solid #eee; }
 
-        /* СТИЛИ КАРТИНОК В ТЕКСТЕ */
-        .content-img {
-            width: 100%;
-            height: auto;
-            border-radius: 12px;
-            margin: 20px 0;
-            cursor: pointer;
-            transition: opacity 0.3s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        /* ЧИСТЫЙ CSS ЗУМ (Без JS вообще) */
+        .zoom-check { display: none; }
+        .full-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 9999;
+            display: none; align-items: center; justify-content: center;
         }
-        .content-img:hover { opacity: 0.9; }
+        .full-screen img { max-width: 95%; max-height: 95%; object-fit: contain; }
 
-        /* ОВЕРЛЕЙ ДЛЯ ЗУМА (Тот самый черный экран) */
-        #zoom-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            display: none; /* Скрыт по умолчанию */
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            cursor: zoom-out;
-        }
-
-        /* КАРТИНКА В ЗУМЕ */
-        #zoom-overlay img {
-            max-width: 95%;
-            max-height: 95%;
-            object-fit: contain;
-            border-radius: 4px;
-            box-shadow: 0 0 20px rgba(255,255,255,0.1);
-        }
-
-        /* Кнопка закрытия */
-        .close-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: white;
-            font-size: 30px;
-            font-weight: bold;
-            cursor: pointer;
-        }
+        /* Магия: если чекбокс нажат, показываем зум */
+        .zoom-check:checked ~ .full-screen { display: flex; }
     </style>
 </head>
 <body>
 
-    <div id="zoom-overlay" onclick="closeZoom()">
-        <span class="close-btn">&times;</span>
-        <img id="zoomed-image" src="" alt="Zoomed view">
+    <h1>Проверка связи</h1>
+    <p>Если ты видишь этот текст, значит страница ожила!</p>
+
+    <div class="img-container">
+        <input type="checkbox" id="zoom-trigger" class="zoom-check">
+        
+        <label for="zoom-trigger">
+            <img src="https://raw.githubusercontent.com/Kazakura/winebot/main/country/argentina_map.jpg" class="thumb">
+            <p style="color: blue;">Нажми на карту для зума</p>
+        </label>
+
+        <label for="zoom-trigger" class="full-screen">
+            <img src="https://raw.githubusercontent.com/Kazakura/winebot/main/country/argentina_map.jpg">
+        </label>
     </div>
 
-    <div class="container">
-        <h1>Пример статьи с зумом</h1>
-        <p>Нажмите на картинку ниже, чтобы проверить, как работает увеличение на весь экран.</p>
-
-        <img src="https://raw.githubusercontent.com/Kazakura/winebot/main/country/argentina_map.jpg" 
-             class="content-img" 
-             onclick="openZoom(this.src)" 
-             alt="Map">
-
-        <p>Этот метод использует фиксированное позиционирование (fixed) и высокий z-index, чтобы картинка перекрывала
+</body>
+</html>
