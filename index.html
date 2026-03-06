@@ -13,31 +13,96 @@
             --hint: var(--tg-theme-hint-color, #707579);
             --link: var(--tg-theme-link-color, #3390ec);
             --sec: var(--tg-theme-secondary-bg-color, #f4f4f5);
-            --accent: #800020; 
+            --accent: #800020; /* Цвет марсала для акцентов */
         }
 
-        body { background: var(--bg); color: var(--text); font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; }
+        body { 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
         
-        .header { position: sticky; top: 0; background: var(--bg); padding: 15px; border-bottom: 1px solid var(--sec); z-index: 100; display: flex; align-items: center; }
-        .back-btn { color: var(--link); cursor: pointer; display: none; font-size: 26px; margin-right: 15px; line-height: 1; }
-        .header strong { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Шапка */
+        .header { 
+            position: sticky; 
+            top: 0; 
+            background: var(--bg); 
+            padding: 15px; 
+            border-bottom: 1px solid var(--sec); 
+            z-index: 100; 
+            display: flex; 
+            align-items: center; 
+            height: 30px;
+        }
+        .back-btn { 
+            color: var(--link); 
+            cursor: pointer; 
+            display: none; 
+            font-size: 28px; 
+            margin-right: 15px; 
+            line-height: 1;
+        }
+        .header strong { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
 
-        .chapter-title { background: var(--sec); padding: 10px 15px; font-weight: 600; font-size: 13px; color: var(--hint); text-transform: uppercase; }
-        .menu-item { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: var(--bg); }
+        /* Оглавление */
+        .chapter-title { 
+            background: var(--sec); 
+            padding: 10px 15px; 
+            font-weight: 600; 
+            font-size: 12px; 
+            color: var(--hint); 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .menu-item { 
+            padding: 16px; 
+            border-bottom: 0.5px solid var(--sec); 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            background: var(--bg);
+        }
         .menu-item:active { background: var(--sec); }
+        .arrow { color: var(--hint); font-size: 16px; opacity: 0.5; }
 
-        #content { padding: 20px; line-height: 1.6; font-size: 18px; max-width: 700px; margin: 0 auto; animation: fadeIn 0.2s ease; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Контент Статьи */
+        #content { 
+            padding: 20px; 
+            line-height: 1.6; 
+            font-size: 18px; 
+            max-width: 700px; 
+            margin: 0 auto;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        #content h1, #content h2 { color: var(--accent); border-bottom: 1px solid var(--sec); padding-bottom: 8px; }
-        #content img { width: 100%; border-radius: 12px; margin: 15px 0; cursor: zoom-in; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        #content table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        #content td { border: 1px solid var(--sec); padding: 10px; }
+        #content h1, #content h2 { color: var(--accent); border-bottom: 1px solid var(--sec); padding-bottom: 8px; margin-top: 1.5em; }
+        #content p { margin-bottom: 1em; }
+        #content img { 
+            width: 100%; 
+            height: auto; 
+            border-radius: 12px; 
+            margin: 15px 0; 
+            cursor: zoom-in;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        #content table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 16px; overflow-x: auto; display: block; }
+        #content td, #content th { border: 1px solid var(--sec); padding: 10px; text-align: left; }
 
-        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; display: none; align-items: center; justify-content: center; }
-        #overlay img { max-width: 98%; max-height: 98%; }
+        /* Просмотр фото */
+        #overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.95); z-index: 1000; 
+            display: none; align-items: center; justify-content: center; 
+        }
+        #overlay img { max-width: 98%; max-height: 98%; border-radius: 4px; }
 
-        .loader { padding: 50px; text-align: center; color: var(--hint); }
+        .loader { padding: 60px 20px; text-align: center; color: var(--hint); font-size: 16px; }
     </style>
 </head>
 <body>
@@ -56,25 +121,31 @@
     <script>
         const tg = window.Telegram.WebApp;
         
-        // --- БАЗОВЫЕ НАСТРОЙКИ ---
+        // --- ПУТИ К ДАННЫМ ---
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv';
-        // Путь до корня твоего репозитория (без названия папки в конце!)
         const GITHUB_RAW_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
-        // -------------------------
+        // ---------------------
 
         let rawData = [];
         tg.expand();
         tg.ready();
 
+        // Загрузка структуры из Google Таблицы
         Papa.parse(SHEET_URL, {
-            download: true, header: true, skipEmptyLines: true,
+            download: true,
+            header: true,
+            skipEmptyLines: true,
             complete: (results) => {
-                rawData = results.data.filter(r => r.Category && r.Title && r.File);
-                renderMain();
+                rawData = results.data.filter(r => r.Category && r.Title && r.File && r.Folder);
+                renderMainPage();
+            },
+            error: () => {
+                document.getElementById('view').innerHTML = "<div class='loader'>Ошибка подключения к базе.</div>";
             }
         });
 
-        function renderMain() {
+        // Главное меню (Оглавление)
+        function renderMainPage() {
             const container = document.getElementById('view');
             container.innerHTML = "";
             document.getElementById('back').style.display = "none";
@@ -91,42 +162,48 @@
                 rawData.filter(i => i.Category === cat).forEach(lesson => {
                     const div = document.createElement('div');
                     div.className = "menu-item";
-                    div.innerHTML = `<span>${lesson.Title}</span> <span style="opacity:0.3">›</span>`;
-                    
-                    // Теперь передаем и Folder, и File
-                    div.onclick = () => loadAnyContent(lesson.Folder, lesson.File, lesson.Title);
-                    
+                    div.innerHTML = `<span>${lesson.Title}</span> <span class="arrow">›</span>`;
+                    div.onclick = () => loadAnyLesson(lesson.Folder, lesson.File, lesson.Title);
                     container.appendChild(div);
                 });
             });
         }
 
-        async function loadAnyContent(folder, file, title) {
+        // Загрузка HTML-файла (Вино, Виски, Кофе и т.д.)
+        async function loadAnyLesson(folder, fileName, title) {
             const container = document.getElementById('view');
             document.getElementById('back').style.display = "block";
             document.getElementById('head-title').innerText = title;
-            container.innerHTML = "<div class='loader'>Загрузка контента...</div>";
+            container.innerHTML = "<div class='loader'>Открываем...</div>";
 
-            // Собираем полный путь: ROOT + папка из таблицы + имя файла
-            const fullUrl = `${GITHUB_RAW_ROOT}${folder}/${file}`;
+            const fullUrl = `${GITHUB_RAW_ROOT}${folder}/${fileName}`;
 
             try {
                 const response = await fetch(fullUrl);
                 if (!response.ok) throw new Error('404');
+
                 const html = await response.text();
                 container.innerHTML = `<div id="content">${html}</div>`;
                 window.scrollTo(0, 0);
+                
             } catch (err) {
                 container.innerHTML = `
                     <div class='loader'>
-                        <strong>Ошибка загрузки</strong><br>
-                        <small style="color:red">Не найден файл: ${folder}/${file}</small>
+                        <strong>Материал не найден</strong><br>
+                        <small style="display:block; margin-top:10px; color:red">
+                            Путь: ${folder}/${fileName}
+                        </small>
                     </div>`;
             }
         }
 
-        document.getElementById('back').onclick = () => { renderMain(); window.scrollTo(0, 0); };
+        // Кнопка Назад
+        document.getElementById('back').onclick = () => {
+            renderMainPage();
+            window.scrollTo(0, 0);
+        };
 
+        // Увеличение фото во весь экран
         const overlay = document.getElementById('overlay');
         document.addEventListener('click', (e) => {
             if (e.target.tagName === 'IMG' && e.target.closest('#content')) {
@@ -136,6 +213,7 @@
             }
         });
         overlay.onclick = () => overlay.style.display = 'none';
+
     </script>
 </body>
 </html>
