@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wine Guide Pro</title>
+    <title>Wine Guide</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -15,8 +15,8 @@
         }
         body { 
             background: var(--bg); color: var(--text); 
-            font-family: -apple-system, system-ui, sans-serif; 
-            margin: 0; padding: 0; overflow-x: hidden;
+            font-family: -apple-system, sans-serif; 
+            margin: 0; padding: 0; 
             -webkit-tap-highlight-color: transparent;
         }
         /* Header */
@@ -38,20 +38,18 @@
         #content img { 
             width: 100% !important; height: auto !important; 
             border-radius: 12px; margin: 15px 0; 
-            display: block; cursor: zoom-in;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: block; cursor: pointer;
         }
 
-        /* Fullscreen Zoom */
+        /* Fullscreen Zoom Overlay */
         #zoom-wrap { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.97); z-index: 2000; 
+            background: rgba(0,0,0,0.98); z-index: 9999; 
             display: none; align-items: center; justify-content: center; 
         }
         #zoom-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
         .status-v { padding: 60px 20px; text-align: center; color: var(--hint); }
-        .err-v { color: #ff3b30; padding: 20px; text-align: center; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -69,36 +67,29 @@
 
     <script>
         const tg = window.Telegram.WebApp;
-        // Автоматическая очистка кэша таблицы при каждом запуске
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&t=' + Date.now();
         const GITHUB_BASE = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
         
         let database = [];
         tg.expand();
-        tg.ready();
 
         // 1. Загрузка данных
         async function init() {
-            const app = document.getElementById('app-view');
             try {
-                const response = await fetch(SHEET_URL);
-                if (!response.ok) throw new Error("Нет доступа к Google Таблице");
-                const text = await response.text();
-                
-                // Простой парсинг CSV (учитывает запятые)
-                const rows = text.split(/\r?\n/).map(line => line.split(','));
+                const res = await fetch(SHEET_URL);
+                const text = await res.text();
+                const rows = text.split('\n').map(r => r.split(','));
                 const headers = rows[0].map(h => h.trim());
                 
                 database = rows.slice(1).map(row => {
                     let obj = {};
                     headers.forEach((h, i) => obj[h] = row[i] ? row[i].trim() : "");
                     return obj;
-                }).filter(item => item.Title);
-
-                if (database.length === 0) throw new Error("Таблица пуста или неверные заголовки");
+                }).filter(i => i.Title);
+                
                 showMain();
             } catch (e) {
-                app.innerHTML = `<div class="err-v"><b>Ошибка:</b><br>${e.message}<br><br><small>Проверьте Файл -> Опубликовать -> CSV</small></div>`;
+                document.getElementById('app-view').innerHTML = "<div class='status-v'>Ошибка таблицы. Переопубликуйте CSV.</div>";
             }
         }
 
@@ -111,16 +102,14 @@
 
             const categories = [...new Set(database.map(i => i.Category))];
             categories.forEach(cat => {
-                if(!cat) return;
                 const head = document.createElement('div');
-                head.className = 'cat-v';
-                head.innerText = cat;
+                head.className = 'cat-v'; head.innerText = cat;
                 app.appendChild(head);
 
                 database.filter(i => i.Category === cat).forEach(item => {
                     const row = document.createElement('div');
                     row.className = 'row-v';
-                    row.innerHTML = `<span>${item.Title}</span><span style="opacity:0.3; font-size:20px;">›</span>`;
+                    row.innerHTML = `<span>${item.Title}</span><span style="opacity:0.2">›</span>`;
                     row.onclick = () => openContent(item.Folder, item.File, item.Title);
                     app.appendChild(row);
                 });
@@ -134,25 +123,21 @@
             document.getElementById('back').style.display = "block";
             document.getElementById('title').innerText = name;
 
-            const path = `${GITHUB_BASE}${folder}/${file}`;
             try {
-                const res = await fetch(path);
-                if (!res.ok) throw new Error();
+                const res = await fetch(`${GITHUB_BASE}${folder}/${file}`);
                 const html = await res.text();
                 app.innerHTML = `<div id="content">${html}</div>`;
                 window.scrollTo(0,0);
-            } catch(e) { 
-                app.innerHTML = `<div class="err-v">Файл не найден:<br>${folder}/${file}</div>`; 
-            }
+            } catch(e) { app.innerHTML = "Файл не найден."; }
         }
 
-        // 4. Глобальный ЗУМ (слушает все клики по картинкам)
-        document.addEventListener('click', (e) => {
+        // 4. Глобальный ЗУМ (Срабатывает на ЛЮБУЮ картинку)
+        document.addEventListener('click', function(e) {
             if (e.target.tagName === 'IMG' && e.target.id !== 'zoom-img') {
-                const zoomWrap = document.getElementById('zoom-wrap');
-                const zoomImg = document.getElementById('zoom-img');
-                zoomImg.src = e.target.src;
-                zoomWrap.style.display = 'flex';
+                const wrap = document.getElementById('zoom-wrap');
+                const img = document.getElementById('zoom-img');
+                img.src = e.target.src;
+                wrap.style.display = 'flex';
                 if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
             }
         });
