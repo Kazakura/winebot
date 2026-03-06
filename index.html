@@ -2,48 +2,59 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wine Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wine Guide</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; text-align: center; }
-        h1 { color: #333; }
+        body { font-family: -apple-system, sans-serif; margin: 0; background: #fff; color: #000; -webkit-tap-highlight-color: transparent; }
+        .header { position: sticky; top: 0; background: #fff; padding: 10px; border-bottom: 1px solid #eee; display: flex; align-items: center; z-index: 100; height: 45px; }
+        #back { color: #007aff; cursor: pointer; display: none; font-size: 25px; margin-right: 15px; font-weight: bold; }
+        .category { background: #f4f4f5; padding: 8px 15px; font-size: 12px; color: #888; text-transform: uppercase; font-weight: bold; }
+        .item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; cursor: pointer; }
         
-        /* Контейнер для картинки */
-        .img-container { position: relative; display: inline-block; margin-top: 20px; }
-        
-        /* Маленькая картинка */
-        .thumb { width: 200px; border-radius: 10px; cursor: pointer; border: 2px solid #eee; }
+        /* КОНТЕНТ СТАТЬИ */
+        #main { min-height: 200px; }
+        #content { padding: 15px; line-height: 1.6; font-size: 17px; }
+        #content img { width: 100%; border-radius: 8px; margin: 10px 0; cursor: zoom-in; display: block; }
 
-        /* ЧИСТЫЙ CSS ЗУМ (Без JS вообще) */
-        .zoom-check { display: none; }
-        .full-screen {
+        /* СЛОЙ МАСШТАБИРОВАНИЯ (ZOOM) */
+        #zoom-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 9999;
-            display: none; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.95); display: none;
+            align-items: center; justify-content: center; z-index: 10000;
         }
-        .full-screen img { max-width: 95%; max-height: 95%; object-fit: contain; }
-
-        /* Магия: если чекбокс нажат, показываем зум */
-        .zoom-check:checked ~ .full-screen { display: flex; }
+        #zoom-overlay.active { display: flex; }
+        #zoom-overlay img { max-width: 98%; max-height: 98%; object-fit: contain; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        
+        .loading { padding: 50px; text-align: center; color: #999; }
     </style>
 </head>
 <body>
 
-    <h1>Проверка связи</h1>
-    <p>Если ты видишь этот текст, значит страница ожила!</p>
+<div id="zoom-overlay" onclick="this.classList.remove('active')">
+    <img src="" id="zoom-img">
+</div>
 
-    <div class="img-container">
-        <input type="checkbox" id="zoom-trigger" class="zoom-check">
-        
-        <label for="zoom-trigger">
-            <img src="https://raw.githubusercontent.com/Kazakura/winebot/main/country/argentina_map.jpg" class="thumb">
-            <p style="color: blue;">Нажми на карту для зума</p>
-        </label>
+<div class="header">
+    <span id="back" onclick="showMenu()">‹ Назад</span>
+    <b id="title">Обучение</b>
+</div>
 
-        <label for="zoom-trigger" class="full-screen">
-            <img src="https://raw.githubusercontent.com/Kazakura/winebot/main/country/argentina_map.jpg">
-        </label>
-    </div>
+<div id="main"><div class="loading">Загрузка...</div></div>
 
-</body>
-</html>
+<script>
+    const tg = window.Telegram.WebApp;
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&v=' + Date.now();
+    const GH_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
+    
+    let db = [];
+    tg.expand();
+
+    // 1. Загрузка данных из таблицы
+    fetch(CSV_URL).then(r => r.text()).then(text => {
+        const rows = text.split('\n');
+        const head = rows[0].split(',').map(h => h.trim());
+        db = rows.slice(1).map(row => {
+            const cols = row.split(',');
+            let obj = {};
+            head.forEach((h, i) => obj[h] = cols[i] ? cols
