@@ -13,90 +13,63 @@
             --hint: var(--tg-theme-hint-color, #707579);
             --link: var(--tg-theme-link-color, #3390ec);
             --sec: var(--tg-theme-secondary-bg-color, #f4f4f5);
-            --accent: #800020; 
         }
-
-        body { 
-            background: var(--bg); color: var(--text); 
-            font-family: -apple-system, system-ui, sans-serif; 
-            margin: 0; padding: 0; overflow-x: hidden;
-        }
-        
-        .header { 
-            position: sticky; top: 0; background: var(--bg); 
-            padding: 10px 15px; border-bottom: 1px solid var(--sec); 
-            z-index: 1000; display: flex; align-items: center; height: 40px;
-        }
-        .back-btn { color: var(--link); cursor: pointer; display: none; font-size: 30px; margin-right: 15px; line-height: 1; }
-        .header strong { font-size: 17px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; padding: 0; }
+        .header { position: sticky; top: 0; background: var(--bg); padding: 10px 15px; border-bottom: 1px solid var(--sec); display: flex; align-items: center; z-index: 10; height: 40px; }
+        .back-btn { color: var(--link); cursor: pointer; display: none; font-size: 30px; margin-right: 15px; }
+        .header strong { font-size: 17px; flex: 1; }
         .chapter-title { background: var(--sec); padding: 10px 15px; font-weight: 600; font-size: 12px; color: var(--hint); text-transform: uppercase; }
-        .menu-item { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: var(--bg); }
-        .menu-item:active { background: var(--sec); }
-
-        #content { padding: 20px; line-height: 1.6; font-size: 18px; max-width: 700px; margin: 0 auto; }
-        #content img { width: 100% !important; height: auto !important; border-radius: 12px; margin: 15px 0; cursor: pointer; }
-        
-        #overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.95); z-index: 9999; 
-            display: none; align-items: center; justify-content: center; 
-        }
+        .menu-item { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; }
+        #content { padding: 20px; line-height: 1.6; font-size: 18px; }
+        #content img { width: 100%; border-radius: 12px; margin: 15px 0; }
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; }
         #overlay img { max-width: 100%; max-height: 100%; }
-
-        .loader { padding: 50px; text-align: center; color: var(--hint); font-size: 14px; }
-        .error-msg { color: red; padding: 20px; text-align: center; }
+        .loader { padding: 50px; text-align: center; color: var(--hint); }
+        .error-box { padding: 20px; color: red; text-align: center; font-size: 14px; }
     </style>
 </head>
 <body>
-
-    <div id="overlay"><img src="" alt=""></div>
-
+    <div id="overlay"><img src=""></div>
     <div class="header">
         <span id="back" class="back-btn">‹</span>
         <strong id="head-title">База знаний</strong>
     </div>
-
-    <div id="view">
-        <div class="loader">Синхронизация с таблицей...</div>
-    </div>
+    <div id="view"><div class="loader">Синхронизация...</div></div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        
-        // --- НАСТРОЙКИ ---
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv';
-        const GITHUB_RAW_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
-        // -----------------
+        const GITHUB_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
 
         let rawData = [];
         tg.expand();
-        tg.ready();
 
-        // 1. Загрузка данных
-        function init() {
-            Papa.parse(SHEET_URL, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: (results) => {
-                    console.log("Данные получены:", results.data);
-                    // Фильтруем только строки, где есть хотя бы Title
-                    rawData = results.data.filter(r => r.Title && r.Title.trim() !== "");
-                    
-                    if (rawData.length === 0) {
-                        document.getElementById('view').innerHTML = "<div class='error-msg'>Таблица пуста или колонки названы неверно (Title, Category, Folder, File).</div>";
-                    } else {
-                        renderMenu();
-                    }
-                },
-                error: (err) => {
-                    document.getElementById('view').innerHTML = "<div class='error-msg'>Ошибка загрузки CSV. Проверьте публикацию таблицы.</div>";
+        // 1. Загрузка данных с проверкой ошибок
+        Papa.parse(SHEET_URL, {
+            download: true,
+            header: true,
+            skipEmptyLines: 'greedy', // Игнорировать пустые строки
+            complete: (results) => {
+                console.log("Данные:", results.data);
+                // Фильтруем данные, чтобы не было пустых строк
+                rawData = results.data.filter(r => r.Title && r.Title.trim() !== "");
+                
+                if (rawData.length === 0) {
+                    document.getElementById('view').innerHTML = `
+                        <div class="error-box">
+                            <b>Данные не найдены!</b><br>
+                            Проверьте, что в таблице есть колонки: <u>Category</u>, <u>Title</u>, <u>Folder</u>, <u>File</u>.
+                        </div>`;
+                } else {
+                    renderMenu();
                 }
-            });
-        }
+            },
+            error: (err) => {
+                document.getElementById('view').innerHTML = `<div class="error-box">Ошибка сети: ${err}</div>`;
+            }
+        });
 
-        // 2. Отрисовка меню
+        // 2. Рендер меню
         function renderMenu() {
             const container = document.getElementById('view');
             container.innerHTML = "";
@@ -104,7 +77,6 @@
             document.getElementById('head-title').innerText = "Обучение";
 
             const categories = [...new Set(rawData.map(item => item.Category || "Разное"))];
-
             categories.forEach(cat => {
                 const head = document.createElement('div');
                 head.className = "chapter-title";
@@ -114,38 +86,46 @@
                 rawData.filter(i => (i.Category || "Разное") === cat).forEach(lesson => {
                     const div = document.createElement('div');
                     div.className = "menu-item";
-                    div.innerHTML = `<span>${lesson.Title}</span> <span style="opacity:0.3">›</span>`;
+                    div.innerHTML = `<span>${lesson.Title}</span> <span>›</span>`;
                     div.onclick = () => loadLesson(lesson.Folder, lesson.File, lesson.Title);
                     container.appendChild(div);
                 });
             });
         }
 
-        // 3. Загрузка контента из GitHub
+        // 3. Загрузка контента
         async function loadLesson(folder, file, title) {
             const container = document.getElementById('view');
             document.getElementById('back').style.display = "block";
             document.getElementById('head-title').innerText = title;
-            container.innerHTML = "<div class='loader'>Загрузка...</div>";
+            container.innerHTML = "<div class='loader'>Загрузка контента...</div>";
 
-            // Собираем путь
-            const folderPath = folder ? folder.trim().toLowerCase() : "country";
-            const fullPath = `${GITHUB_RAW_ROOT}${folderPath}/${file.trim()}`;
+            const folderPath = folder ? folder.trim() : "country";
+            const fullUrl = `${GITHUB_ROOT}${folderPath}/${file.trim()}`;
 
             try {
-                const response = await fetch(fullPath);
+                const response = await fetch(fullUrl);
                 if (!response.ok) throw new Error();
                 const html = await response.text();
                 container.innerHTML = `<div id="content">${html}</div>`;
                 window.scrollTo(0, 0);
-            } catch (err) {
-                container.innerHTML = `<div class='error-msg'>Файл не найден:<br><small>${folderPath}/${file}</small></div>`;
+            } catch (e) {
+                container.innerHTML = `<div class="error-box">Файл не найден:<br>${folderPath}/${file}</div>`;
             }
         }
 
-        // 4. Кнопка "Назад"
-        document.getElementById('back').onclick = () => { renderMenu(); window.scrollTo(0, 0); };
+        document.getElementById('back').onclick = () => renderMenu();
 
-        // 5. Зум картинок
+        // 4. Зум картинок
         const overlay = document.getElementById('overlay');
-        
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName === 'IMG' && e.target.closest('#view')) {
+                overlay.querySelector('img').src = e.target.src;
+                overlay.style.display = 'flex';
+                if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+            }
+        });
+        overlay.onclick = () => overlay.style.display = 'none';
+    </script>
+</body>
+</html>
