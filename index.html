@@ -5,46 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wine Guide</title>
     <style>
-        /* Базовые стили */
-        body { font-family: -apple-system, sans-serif; margin: 0; background: #fff; color: #000; }
-        .header { position: sticky; top: 0; background: #fff; padding: 10px; border-bottom: 1px solid #eee; display: flex; align-items: center; z-index: 100; }
+        body { font-family: -apple-system, sans-serif; margin: 0; background: #fff; color: #000; -webkit-tap-highlight-color: transparent; }
+        .header { position: sticky; top: 0; background: #fff; padding: 10px; border-bottom: 1px solid #eee; display: flex; align-items: center; z-index: 100; height: 45px; }
         #back { color: #007aff; cursor: pointer; display: none; font-size: 25px; margin-right: 15px; font-weight: bold; }
-        
-        /* Стили меню */
         .category { background: #f4f4f5; padding: 8px 15px; font-size: 12px; color: #888; text-transform: uppercase; font-weight: bold; }
         .item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; cursor: pointer; }
-        
-        /* Статья и КАРТИНКИ */
+        #main { min-height: 200px; }
         #content { padding: 15px; line-height: 1.6; font-size: 17px; }
-        #content img { 
-            width: 100%; 
-            border-radius: 8px; 
-            margin: 10px 0; 
-            cursor: pointer; 
-            transition: transform 0.2s;
-        }
+        #content img { width: 100%; border-radius: 8px; margin: 10px 0; cursor: pointer; }
 
-        /* CSS ZOOM LAYER (Оверлей) */
+        /* CSS ZOOM */
         #zoom-layer {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            display: none; /* Скрыт по умолчанию */
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: none;
+            align-items: center; justify-content: center; z-index: 9999;
         }
-        #zoom-layer img {
-            max-width: 95%;
-            max-height: 95%;
-            object-fit: contain;
-            border-radius: 4px;
-        }
-        /* Показываем оверлей, когда у него есть класс .active */
-        #zoom-layer.active {
-            display: flex;
-        }
+        #zoom-layer.active { display: flex; }
+        #zoom-layer img { max-width: 95%; max-height: 95%; object-fit: contain; }
+        
+        .loading { padding: 50px; text-align: center; color: #999; }
     </style>
 </head>
 <body>
@@ -58,41 +37,43 @@
     <b id="title">Обучение</b>
 </div>
 
-<div id="main">Загрузка...</div>
+<div id="main"><div class="loading">Загрузка...</div></div>
 
 <script>
+    // Ссылка на таблицу и корень GitHub
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&v=' + Date.now();
     const GH_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
     
-    let data = [];
+    let db = [];
 
-    // 1. Загрузка таблицы
+    // 1. Загрузка данных
     fetch(CSV_URL).then(r => r.text()).then(text => {
         const rows = text.split('\n');
         const head = rows[0].split(',').map(h => h.trim());
-        data = rows.slice(1).map(row => {
+        db = rows.slice(1).map(row => {
             const cols = row.split(',');
             let obj = {};
             head.forEach((h, i) => obj[h] = cols[i] ? cols[i].trim() : "");
             return obj;
         }).filter(i => i.Title);
         showMenu();
-    }).catch(e => document.getElementById('main').innerHTML = "Ошибка таблицы");
+    }).catch(e => {
+        document.getElementById('main').innerHTML = "<div class='loading'>Ошибка загрузки таблицы</div>";
+    });
 
-    // 2. Отображение меню
+    // 2. Меню
     function showMenu() {
         const m = document.getElementById('main');
         m.innerHTML = "";
         document.getElementById('back').style.display = "none";
         document.getElementById('title').innerText = "Обучение";
 
-        const cats = [...new Set(data.map(i => i.Category))].filter(c => c);
+        const cats = [...new Set(db.map(i => i.Category))].filter(c => c);
         cats.forEach(c => {
             const h = document.createElement('div');
             h.className = 'category'; h.innerText = c;
             m.appendChild(h);
-
-            data.filter(i => i.Category === c).forEach(item => {
+            db.filter(i => i.Category === c).forEach(item => {
                 const d = document.createElement('div');
                 d.className = 'item';
                 d.innerHTML = `<span>${item.Title}</span><span>›</span>`;
@@ -102,8 +83,28 @@
         });
     }
 
-    // 3. Открытие статьи
+    // 3. Статья
     function openArt(f, file, t) {
         const m = document.getElementById('main');
-        m.innerHTML = "Загру
-            
+        m.innerHTML = "<div class='loading'>Загрузка контента...</div>";
+        document.getElementById('back').style.display = "block";
+        document.getElementById('title').innerText = t;
+
+        fetch(GH_ROOT + f + "/" + file).then(r => r.text()).then(html => {
+            m.innerHTML = `<div id="content">${html}</div>`;
+            window.scrollTo(0,0);
+        });
+    }
+
+    // 4. CSS ZOOM
+    document.addEventListener('click', function(e) {
+        if (e.target.tagName === 'IMG' && e.target.closest('#content')) {
+            const layer = document.getElementById('zoom-layer');
+            document.getElementById('zoom-img').src = e.target.src;
+            layer.classList.add('active');
+        }
+    });
+</script>
+
+</body>
+</html>
