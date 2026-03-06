@@ -18,92 +18,46 @@
         .header { position: sticky; top: 0; background: var(--bg); padding: 10px 15px; border-bottom: 1px solid var(--sec); display: flex; align-items: center; z-index: 1000; height: 45px; }
         .back-btn { color: var(--link); cursor: pointer; display: none; font-size: 32px; margin-right: 15px; line-height: 1; }
         .header strong { font-size: 17px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
         .chapter-title { background: var(--sec); padding: 10px 15px; font-weight: 600; font-size: 12px; color: var(--hint); text-transform: uppercase; }
         .menu-item { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        .menu-item:active { background: var(--sec); }
-
         #content { padding: 20px; line-height: 1.6; font-size: 18px; max-width: 700px; margin: 0 auto; }
-        #content img { width: 100% !important; height: auto !important; border-radius: 12px; margin: 15px 0; cursor: zoom-in; }
-        
-        /* Слой для полноэкранного фото */
-        #overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.95); z-index: 10000; 
-            display: none; align-items: center; justify-content: center; 
-            cursor: zoom-out;
-        }
+        #content img { width: 100% !important; height: auto !important; border-radius: 12px; margin: 15px 0; cursor: pointer; }
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10001; display: none; align-items: center; justify-content: center; }
         #overlay img { max-width: 100%; max-height: 100%; object-fit: contain; }
-
         .loader { padding: 50px; text-align: center; color: var(--hint); }
-        .error-box { padding: 20px; color: red; text-align: center; }
+        .error-msg { color: red; padding: 20px; text-align: center; font-size: 14px; }
     </style>
 </head>
 <body>
 
-    <div id="overlay"><img src=""></div>
+<div id="overlay"><img src=""></div>
 
-    <div class="header">
-        <span id="back" class="back-btn">‹</span>
-        <strong id="head-title">База знаний</strong>
-    </div>
+<div class="header">
+    <span id="back" class="back-btn">‹</span>
+    <strong id="head-title">База знаний</strong>
+</div>
 
-    <div id="view"><div class="loader">Синхронизация...</div></div>
+<div id="view"><div class="loader">Загрузка данных...</div></div>
 
-    <script>
-        const tg = window.Telegram.WebApp;
-        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv';
-        const GITHUB_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
+<script>
+    const tg = window.Telegram.WebApp;
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv';
+    const GITHUB_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
 
-        let rawData = [];
-        tg.expand();
-        tg.ready();
+    let rawData = [];
+    tg.expand();
+    tg.ready();
 
-        // 1. Загрузка данных
-        Papa.parse(SHEET_URL, {
-            download: true,
-            header: true,
-            skipEmptyLines: 'greedy',
-            complete: (results) => {
-                rawData = results.data.filter(r => r.Title && r.Title.trim() !== "");
-                if (rawData.length === 0) {
-                    document.getElementById('view').innerHTML = '<div class="error-box">Таблица пуста или неверные заголовки.</div>';
-                } else {
-                    renderMenu();
-                }
-            }
-        });
+    // Функция отрисовки меню
+    function renderMenu() {
+        const container = document.getElementById('view');
+        container.innerHTML = "";
+        document.getElementById('back').style.display = "none";
+        document.getElementById('head-title').innerText = "Обучение";
 
-        // 2. Отрисовка списка
-        function renderMenu() {
-            const container = document.getElementById('view');
-            container.innerHTML = "";
-            document.getElementById('back').style.display = "none";
-            document.getElementById('head-title').innerText = "Обучение";
-
-            const categories = [...new Set(rawData.map(item => item.Category || "Разное"))];
-            categories.forEach(cat => {
-                const head = document.createElement('div');
-                head.className = "chapter-title";
-                head.innerText = cat;
-                container.appendChild(head);
-
-                rawData.filter(i => (i.Category || "Разное") === cat).forEach(lesson => {
-                    const div = document.createElement('div');
-                    div.className = "menu-item";
-                    div.innerHTML = `<span>${lesson.Title}</span> <span style="opacity:0.3">›</span>`;
-                    div.onclick = () => loadLesson(lesson.Folder, lesson.File, lesson.Title);
-                    container.appendChild(div);
-                });
-            });
-        }
-
-        // 3. Загрузка контента и настройка ЗУМА
-        async function loadLesson(folder, file, title) {
-            const container = document.getElementById('view');
-            document.getElementById('back').style.display = "block";
-            document.getElementById('head-title').innerText = title;
-            container.innerHTML = "<div class='loader'>Загрузка...</div>";
-
-            const folderPath = folder ? folder.trim().toLowerCase() : "country";
-            const fullUrl
+        const categories = [...new Set(rawData.map(item => item.Category || "Разное"))];
+        categories.forEach(cat => {
+            const head = document.createElement('div');
+            head.className = "chapter-title";
+            head.innerText
+            
