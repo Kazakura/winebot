@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wine Base System</title>
+    <title>Wine Education</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -16,137 +16,89 @@
 
         body { 
             background: var(--bg); color: var(--text); 
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-            margin: 0; padding: 0; overflow-x: hidden;
+            font-family: -apple-system, system-ui, sans-serif; 
+            margin: 0; padding: 0; user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Шапка приложения */
+        /* Фиксированная шапка */
         .header { 
             position: sticky; top: 0; background: var(--bg); 
             padding: 10px 15px; border-bottom: 1px solid var(--sec); 
             z-index: 1000; display: flex; align-items: center; height: 45px;
         }
-        #back { 
-            color: var(--link); cursor: pointer; display: none; 
-            font-size: 32px; margin-right: 12px; font-weight: bold; line-height: 1;
-        }
-        .header strong { font-size: 17px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #back { color: var(--link); cursor: pointer; display: none; font-size: 35px; margin-right: 15px; line-height: 1; }
+        #head-title { font-size: 17px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Элементы меню */
-        .category-label { background: var(--sec); padding: 8px 15px; font-size: 11px; color: var(--hint); text-transform: uppercase; font-weight: 700; }
-        .menu-item { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: var(--bg); }
-        .menu-item:active { background: var(--sec); }
-        .arrow { opacity: 0.2; font-size: 20px; }
+        /* Меню */
+        .cat { background: var(--sec); padding: 8px 15px; font-size: 11px; color: var(--hint); text-transform: uppercase; font-weight: bold; }
+        .row { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; background: var(--bg); }
+        .row:active { background: var(--sec); }
 
-        /* Контент статьи */
-        #content { padding: 20px; line-height: 1.6; font-size: 18px; max-width: 800px; margin: 0 auto; }
+        /* Статья */
+        #content { padding: 20px; line-height: 1.6; font-size: 18px; }
         #content img { 
-            display: block; width: 100% !important; height: auto !important; 
-            border-radius: 12px; margin: 20px 0; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100% !important; height: auto !important; 
+            border-radius: 10px; margin: 15px 0; 
+            display: block; cursor: pointer;
         }
 
-        /* Полноэкранный просмотр фото */
-        #overlay { 
+        /* Полноэкранный просмотр */
+        #zoom-layer { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.96); z-index: 10001; 
-            display: none; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.95); z-index: 2000; 
+            display: none; align-items: center; justify-content: center; 
         }
-        #overlay img { max-width: 95%; max-height: 90%; object-fit: contain; border-radius: 4px; }
+        #zoom-layer img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-        .loading { padding: 60px; text-align: center; color: var(--hint); font-size: 15px; }
-        .error-msg { color: #cc0000; padding: 30px; text-align: center; font-weight: bold; }
+        .loader { padding: 50px; text-align: center; color: var(--hint); }
     </style>
 </head>
 <body>
 
-    <div id="overlay">
-        <img id="overlay-img" src="" alt="Full size">
+    <div id="zoom-layer" onclick="this.style.display='none'">
+        <img src="" id="zoom-img">
     </div>
 
     <div class="header">
-        <span id="back">‹</span>
-        <strong id="head-title">База знаний</strong>
+        <span id="back" onclick="goMenu()">‹</span>
+        <div id="head-title">Обучение</div>
     </div>
 
-    <div id="view">
-        <div class="loading">Загрузка данных...</div>
-    </div>
+    <div id="app"><div class="loader">Синхронизация...</div></div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&nocache=' + Date.now();
-        const GH_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
-
-        let lessonsData = [];
-
+        const CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&v=' + Date.now();
+        const RAW = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
+        
+        let db = [];
         tg.expand();
-        tg.ready();
 
-        // 1. Простой парсинг CSV
-        function parseCSV(text) {
-            const rows = text.split(/\r?\n/);
-            const headers = rows[0].split(',').map(h => h.trim());
-            return rows.slice(1).map(row => {
-                const cols = row.split(',');
-                const obj = {};
-                headers.forEach((h, i) => obj[h] = cols[i] ? cols[i].trim() : "");
-                return obj;
-            });
-        }
+        // Загрузка таблицы
+        fetch(CSV).then(r => r.text()).then(txt => {
+            const rows = txt.split('\n').map(r => r.split(','));
+            const head = rows[0].map(h => h.trim());
+            db = rows.slice(1).map(row => {
+                let o = {};
+                head.forEach((h, i) => o[h] = row[i] ? row[i].trim() : "");
+                return o;
+            }).filter(r => r.Title);
+            goMenu();
+        });
 
-        // 2. Отрисовка меню
-        function showMenu() {
-            const container = document.getElementById('view');
-            container.innerHTML = "";
+        // Главное меню
+        function goMenu() {
+            const app = document.getElementById('app');
+            app.innerHTML = "";
             document.getElementById('back').style.display = "none";
             document.getElementById('head-title').innerText = "Обучение";
 
-            const categories = [...new Set(lessonsData.map(l => l.Category))].filter(c => c);
-            
-            categories.forEach(cat => {
-                const label = document.createElement('div');
-                label.className = "category-label";
-                label.innerText = cat;
-                container.appendChild(label);
-
-                lessonsData.filter(l => l.Category === cat).forEach(item => {
-                    if (!item.Title) return;
-                    const div = document.createElement('div');
-                    div.className = "menu-item";
-                    div.innerHTML = `<span>${item.Title}</span><span class="arrow">›</span>`;
-                    div.onclick = () => openLesson(item.Folder, item.File, item.Title);
-                    container.appendChild(div);
-                });
-            });
-        }
-
-        // 3. Загрузка статьи
-        async function openLesson(folder, file, title) {
-            const container = document.getElementById('view');
-            container.innerHTML = "<div class='loading'>Загрузка контента...</div>";
-            document.getElementById('back').style.display = "block";
-            document.getElementById('head-title').innerText = title;
-
-            const path = `${GH_ROOT}${folder || 'country'}/${file}`;
-
-            try {
-                const res = await fetch(path);
-                if (!res.ok) throw new Error();
-                const html = await res.text();
-                container.innerHTML = `<div id="content">${html}</div>`;
-                window.scrollTo(0, 0);
-            } catch (e) {
-                container.innerHTML = `<div class="error-msg">Ошибка: файл ${folder}/${file} не найден.</div>`;
-            }
-        }
-
-        // 4. ГЛОБАЛЬНЫЙ КЛИК (Для увеличения фото)
-        document.addEventListener('click', (e) => {
-            // Если кликнули по картинке
-            if (e.target.tagName === 'IMG') {
-                const overlay = document.getElementById('overlay');
-                const overlayImg = document.getElementById('overlay-img');
-                
-                // Если мы
+            let cats = [...new Set(db.map(i => i.Category))];
+            cats.forEach(c => {
+                app.innerHTML += `<div class="cat">${c}</div>`;
+                db.filter(i => i.Category === c).forEach(item => {
+                    let d = document.createElement('div');
+                    d.className = 'row';
+                    d.innerHTML = `<span>${item
+                                           
