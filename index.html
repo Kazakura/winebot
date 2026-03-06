@@ -16,8 +16,7 @@
         body { 
             background: var(--bg); color: var(--text); 
             font-family: -apple-system, sans-serif; 
-            margin: 0; padding: 0; 
-            -webkit-tap-highlight-color: transparent;
+            margin: 0; padding: 0; -webkit-tap-highlight-color: transparent;
         }
         .header { 
             position: sticky; top: 0; background: var(--bg); 
@@ -27,62 +26,26 @@
         #back { color: var(--link); cursor: pointer; display: none; font-size: 35px; margin-right: 15px; line-height: 1; }
         #title { font-size: 17px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* СТИЛИ ДЛЯ МЕНЮ */
+        /* Меню */
         .cat-v { background: var(--sec); padding: 8px 15px; font-size: 11px; color: var(--hint); text-transform: uppercase; font-weight: bold; }
         .row-v { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; background: var(--bg); align-items: center; }
         
-        /* СТИЛИ ДЛЯ КОНТЕНТА (РАЗБЛОКИРОВКА ЗУМА) */
+        /* Статья */
         #content { padding: 20px; line-height: 1.6; font-size: 18px; }
         #content img { 
             width: 100% !important; height: auto !important; 
             border-radius: 12px; margin: 15px 0; 
-            display: block; 
-            cursor: pointer !important;
-            /* Принудительно разрешаем клики, даже если Word их запретил */
-            pointer-events: auto !important; 
-            position: relative;
-            z-index: 10;
+            display: block; cursor: pointer !important;
+            pointer-events: auto !important;
         }
 
-        /* СЛОЙ УВЕЛИЧЕНИЯ */
+        /* Зум-слой */
         #zoom-wrap { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.98); z-index: 99999; 
             display: none; align-items: center; justify-content: center; 
         }
-        #zoom-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+        #zoom-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
         .status-v { padding: 60px 20px; text-align: center; color: var(--hint); }
-    </style>
-</head>
-<body>
-
-    <div id="zoom-wrap" onclick="this.style.display='none'">
-        <img src="" id="zoom-img">
-    </div>
-
-    <div class="header">
-        <span id="back" onclick="showMain()">‹</span>
-        <div id="title">Обучение</div>
-    </div>
-
-    <div id="app-view"><div class="status-v">Синхронизация...</div></div>
-
-    <script>
-        const tg = window.Telegram.WebApp;
-        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&t=' + Date.now();
-        const GITHUB_BASE = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
-        
-        let database = [];
-        tg.expand();
-
-        async function init() {
-            try {
-                const res = await fetch(SHEET_URL);
-                const text = await res.text();
-                const rows = text.split('\n').map(r => r.split(','));
-                const headers = rows[0].map(h => h.trim());
-                database = rows.slice(1).map(row => {
-                    let obj = {};
-                    headers.forEach((h, i) => obj[h] = row[i] ? row[i].trim() : "");
-                    return obj
+        .error-log { color: red; padding: 20px; font-size: 12px
