@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Учебник Кависта</title>
+    <title>Учебник Кависта: Страны</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <style>
@@ -13,7 +13,7 @@
             --hint: var(--tg-theme-hint-color, #707579);
             --link: var(--tg-theme-link-color, #3390ec);
             --sec: var(--tg-theme-secondary-bg-color, #f4f4f5);
-            --accent: #800020; /* Винный цвет для заголовков */
+            --accent: #800020; /* Цвет выдержанного вина */
         }
 
         body { 
@@ -22,39 +22,39 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
             margin: 0; 
             padding: 0; 
-            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
         }
         
-        /* Шапка */
+        /* Шапка приложения */
         .header { 
             position: sticky; 
             top: 0; 
             background: var(--bg); 
             padding: 15px; 
             border-bottom: 1px solid var(--sec); 
-            z-index: 10; 
+            z-index: 100; 
             display: flex; 
             align-items: center; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         }
         .back-btn { 
             color: var(--link); 
             cursor: pointer; 
             display: none; 
-            font-size: 24px; 
+            font-size: 26px; 
             margin-right: 15px; 
             line-height: 1;
         }
-        .header strong { font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
-        /* Стили Меню */
+        .header strong { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Оглавление (Список стран/глав) */
         .chapter-title { 
             background: var(--sec); 
-            padding: 12px 15px; 
-            font-weight: bold; 
+            padding: 10px 15px; 
+            font-weight: 600; 
             font-size: 13px; 
             color: var(--hint); 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
         .menu-item { 
             padding: 16px; 
@@ -62,56 +62,43 @@
             cursor: pointer; 
             display: flex; 
             justify-content: space-between; 
-            align-items: center; 
-            background: var(--bg);
+            align-items: center;
         }
         .menu-item:active { background: var(--sec); }
-        .arrow { color: var(--hint); font-size: 18px; }
+        .arrow { color: var(--hint); font-size: 16px; opacity: 0.5; }
 
-        /* Контент Урока */
+        /* Контент Урока (HTML из Word) */
         #content { 
             padding: 20px; 
             line-height: 1.6; 
             font-size: 18px; 
-            max-width: 800px; 
-            margin: 0 auto; 
-            animation: fadeIn 0.3s ease;
+            max-width: 600px; 
+            margin: 0 auto;
+            animation: slideIn 0.2s ease-out;
         }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-        #content h1, #content h2, #content h3 { color: var(--accent); margin-top: 1.5em; }
-        #content p { margin-bottom: 1.2em; }
+        #content h1, #content h2 { color: var(--accent); border-bottom: 1px solid var(--sec); padding-bottom: 10px; }
         #content img { 
             width: 100%; 
             height: auto; 
             border-radius: 12px; 
-            margin: 20px 0; 
-            cursor: zoom-in; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+            margin: 15px 0; 
+            cursor: zoom-in;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
-        #content table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 20px 0; 
-            font-size: 16px;
-        }
-        #content td, #content th { border: 1px solid var(--sec); padding: 10px; }
+        #content table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 16px; }
+        #content td { border: 1px solid var(--sec); padding: 8px; }
 
-        /* Полноэкранный просмотр фото */
+        /* Просмотр фото */
         #overlay { 
-            position: fixed; 
-            top: 0; left: 0; 
-            width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.95); 
-            z-index: 1000; 
-            display: none; 
-            align-items: center; 
-            justify-content: center; 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.95); z-index: 1000; 
+            display: none; align-items: center; justify-content: center; 
         }
-        #overlay img { max-width: 98%; max-height: 98%; border-radius: 5px; }
+        #overlay img { max-width: 98%; max-height: 98%; }
 
-        /* Состояние загрузки */
-        .loader { padding: 40px; text-align: center; color: var(--hint); }
+        .loader { padding: 50px; text-align: center; color: var(--hint); font-style: italic; }
     </style>
 </head>
 <body>
@@ -124,107 +111,11 @@
     </div>
 
     <div id="view">
-        <div class="loader">Загрузка материалов...</div>
+        <div class="loader">Открываем карту вин...</div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         
-        // --- НАСТРОЙКИ ---
-        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv';
-        const RAW_BASE_URL = 'https://raw.githubusercontent.com/Kazakura/winebot/main/lessons/';
-        // -----------------
-
-        let rawData = [];
-        tg.expand();
-        tg.ready();
-
-        // 1. Получаем данные из таблицы
-        Papa.parse(SHEET_URL, {
-            download: true,
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-                rawData = results.data.filter(r => r.Category && r.Title);
-                renderMainPage();
-            },
-            error: (err) => {
-                document.getElementById('view').innerHTML = "<div class='loader'>Ошибка загрузки таблицы. Проверьте доступ.</div>";
-            }
-        });
-
-        // 2. Главная страница (Оглавление)
-        function renderMainPage() {
-            const container = document.getElementById('view');
-            container.innerHTML = "";
-            document.getElementById('back').style.display = "none";
-            document.getElementById('head-title').innerText = "Учебник Кависта";
-
-            // Группируем по Главам (Category)
-            const chapters = [...new Set(rawData.map(item => item.Category))];
-
-            chapters.forEach(chap => {
-                const head = document.createElement('div');
-                head.className = "chapter-title";
-                head.innerText = chap;
-                container.appendChild(head);
-
-                // Уроки этой главы
-                rawData.filter(i => i.Category === chap).forEach(lesson => {
-                    const item = document.createElement('div');
-                    item.className = "menu-item";
-                    item.innerHTML = `<span>${lesson.Title}</span> <span class="arrow">›</span>`;
-                    
-                    // Передаем File для загрузки и Title для заголовка
-                    item.onclick = () => loadLesson(lesson.File, lesson.Title);
-                    
-                    container.appendChild(item);
-                });
-            });
-        }
-
-        // 3. Загрузка HTML файла урока
-        async function loadLesson(fileName, title) {
-            const container = document.getElementById('view');
-            const backBtn = document.getElementById('back');
-            const headTitle = document.getElementById('head-title');
-
-            backBtn.style.display = "block";
-            headTitle.innerText = title;
-            container.innerHTML = "<div class='loader'>Открываем страницу...</div>";
-
-            try {
-                const response = await fetch(RAW_BASE_URL + fileName);
-                if (!response.ok) throw new Error('Файл не найден');
-                
-                const htmlContent = await response.text();
-                container.innerHTML = `<div id="content">${htmlContent}</div>`;
-                window.scrollTo(0, 0);
-                
-            } catch (error) {
-                container.innerHTML = `<div class='loader'>😔 Урок "${title}" пока не загружен на сервер. <br><small>Файл: ${fileName}</small></div>`;
-            }
-        }
-
-        // 4. Кнопка "Назад"
-        document.getElementById('back').onclick = () => {
-            renderMainPage();
-            window.scrollTo(0, 0);
-        };
-
-        // 5. Просмотр картинок во весь экран
-        const overlay = document.getElementById('overlay');
-        document.addEventListener('click', (e) => {
-            if (e.target.tagName === 'IMG' && e.target.closest('#content')) {
-                overlay.querySelector('img').src = e.target.src;
-                overlay.style.display = 'flex';
-                tg.HapticFeedback.impactOccurred('medium');
-            }
-        });
-        overlay.onclick = () => {
-            overlay.style.display = 'none';
-        };
-
-    </script>
-</body>
-</html>
+        // --- ПУТИ К ДАННЫМ ---
+        const SHEET_URL = '
