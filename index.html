@@ -1,51 +1,54 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wine Guide</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root {
-            --bg: var(--tg-theme-bg-color, #ffffff);
-            --text: var(--tg-theme-text-color, #222222);
-            --hint: var(--tg-theme-hint-color, #707579);
-            --link: var(--tg-theme-link-color, #3390ec);
-            --sec: var(--tg-theme-secondary-bg-color, #f4f4f5);
-        }
-        body { 
-            background: var(--bg); color: var(--text); 
-            font-family: -apple-system, sans-serif; 
-            margin: 0; padding: 0; -webkit-tap-highlight-color: transparent;
-        }
-        .header { 
-            position: sticky; top: 0; background: var(--bg); 
-            padding: 10px 15px; border-bottom: 1px solid var(--sec); 
-            z-index: 1000; display: flex; align-items: center; height: 45px;
-        }
-        #back { color: var(--link); cursor: pointer; display: none; font-size: 35px; margin-right: 15px; line-height: 1; }
-        #title { font-size: 17px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        /* Меню */
-        .cat-v { background: var(--sec); padding: 8px 15px; font-size: 11px; color: var(--hint); text-transform: uppercase; font-weight: bold; }
-        .row-v { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; background: var(--bg); align-items: center; }
+        body { background: #fff; color: #000; font-family: sans-serif; margin: 0; padding: 0; }
+        .header { position: sticky; top: 0; background: #fff; padding: 10px; border-bottom: 1px solid #ddd; display: flex; align-items: center; z-index: 100; height: 40px; }
+        #back { color: #007aff; cursor: pointer; display: none; font-size: 30px; margin-right: 15px; }
+        .cat { background: #f0f0f0; padding: 8px 15px; font-size: 12px; color: #666; text-transform: uppercase; }
+        .row { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; cursor: pointer; }
+        #content { padding: 15px; line-height: 1.5; font-size: 17px; }
+        #content img { width: 100%; height: auto; border-radius: 8px; margin: 10px 0; display: block; }
         
-        /* Статья */
-        #content { padding: 20px; line-height: 1.6; font-size: 18px; }
-        #content img { 
-            width: 100% !important; height: auto !important; 
-            border-radius: 12px; margin: 15px 0; 
-            display: block; cursor: pointer !important;
-            pointer-events: auto !important;
-        }
+        /* ЗУМ СЛОЙ */
+        #zoom { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        #zoom img { max-width: 100%; max-height: 100%; }
+        
+        .msg { padding: 40px; text-align: center; color: #999; }
+    </style>
+</head>
+<body>
 
-        /* Зум-слой */
-        #zoom-wrap { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.98); z-index: 99999; 
-            display: none; align-items: center; justify-content: center; 
-        }
-        #zoom-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
+<div id="zoom" onclick="this.style.display='none'"><img src="" id="zimg"></div>
 
-        .status-v { padding: 60px 20px; text-align: center; color: var(--hint); }
-        .error-log { color: red; padding: 20px; font-size: 12px
+<div class="header">
+    <span id="back" onclick="showMenu()">‹</span>
+    <b id="title">Обучение</b>
+</div>
+
+<div id="main"><div class="msg">Загрузка данных...</div></div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    // Ссылка на твою таблицу
+    const url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&cache=' + Math.random();
+    const gh = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
+    
+    let data = [];
+    tg.expand();
+
+    // Загрузка
+    fetch(url)
+        .then(r => r.text())
+        .then(text => {
+            const lines = text.split('\n');
+            const head = lines[0].split(',').map(h => h.trim());
+            
+            data = lines.slice(1).map(line => {
+                const cols = line.split(',');
+                let obj = {};
+                head.forEach((h, i) => obj[h
