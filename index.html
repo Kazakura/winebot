@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>База Знаний Кависта</title>
+    <title>Учебник Кависта</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <style>
@@ -13,7 +13,7 @@
             --hint: var(--tg-theme-hint-color, #707579);
             --link: var(--tg-theme-link-color, #3390ec);
             --sec: var(--tg-theme-secondary-bg-color, #f4f4f5);
-            --accent: #800020; /* Цвет марсала для акцентов */
+            --accent: #800020; 
         }
 
         body { 
@@ -26,7 +26,6 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        /* Шапка */
         .header { 
             position: sticky; 
             top: 0; 
@@ -48,7 +47,6 @@
         }
         .header strong { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
 
-        /* Оглавление */
         .chapter-title { 
             background: var(--sec); 
             padding: 10px 15px; 
@@ -70,7 +68,6 @@
         .menu-item:active { background: var(--sec); }
         .arrow { color: var(--hint); font-size: 16px; opacity: 0.5; }
 
-        /* Контент Статьи */
         #content { 
             padding: 20px; 
             line-height: 1.6; 
@@ -82,7 +79,6 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
         #content h1, #content h2 { color: var(--accent); border-bottom: 1px solid var(--sec); padding-bottom: 8px; margin-top: 1.5em; }
-        #content p { margin-bottom: 1em; }
         #content img { 
             width: 100%; 
             height: auto; 
@@ -91,10 +87,9 @@
             cursor: zoom-in;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
-        #content table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 16px; overflow-x: auto; display: block; }
+        #content table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 16px; display: block; overflow-x: auto; }
         #content td, #content th { border: 1px solid var(--sec); padding: 10px; text-align: left; }
 
-        /* Просмотр фото */
         #overlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.95); z-index: 1000; 
@@ -111,7 +106,7 @@
 
     <div class="header">
         <span id="back" class="back-btn">‹</span>
-        <strong id="head-title">База знаний</strong>
+        <strong id="head-title">Учебник Кависта</strong>
     </div>
 
     <div id="view">
@@ -123,20 +118,20 @@
         
         // --- ПУТИ К ДАННЫМ ---
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv';
-        const GITHUB_RAW_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
+        // Здесь мы закрепили маленькую букву 'country'
+        const RAW_BASE_URL = 'https://raw.githubusercontent.com/Kazakura/winebot/main/country/';
         // ---------------------
 
         let rawData = [];
         tg.expand();
         tg.ready();
 
-        // Загрузка структуры из Google Таблицы
         Papa.parse(SHEET_URL, {
             download: true,
             header: true,
             skipEmptyLines: true,
             complete: (results) => {
-                rawData = results.data.filter(r => r.Category && r.Title && r.File && r.Folder);
+                rawData = results.data.filter(r => r.Category && r.Title && r.File);
                 renderMainPage();
             },
             error: () => {
@@ -144,7 +139,6 @@
             }
         });
 
-        // Главное меню (Оглавление)
         function renderMainPage() {
             const container = document.getElementById('view');
             container.innerHTML = "";
@@ -163,23 +157,20 @@
                     const div = document.createElement('div');
                     div.className = "menu-item";
                     div.innerHTML = `<span>${lesson.Title}</span> <span class="arrow">›</span>`;
-                    div.onclick = () => loadAnyLesson(lesson.Folder, lesson.File, lesson.Title);
+                    div.onclick = () => loadLessonContent(lesson.File, lesson.Title);
                     container.appendChild(div);
                 });
             });
         }
 
-        // Загрузка HTML-файла (Вино, Виски, Кофе и т.д.)
-        async function loadAnyLesson(folder, fileName, title) {
+        async function loadLessonContent(fileName, title) {
             const container = document.getElementById('view');
             document.getElementById('back').style.display = "block";
             document.getElementById('head-title').innerText = title;
-            container.innerHTML = "<div class='loader'>Открываем...</div>";
-
-            const fullUrl = `${GITHUB_RAW_ROOT}${folder}/${fileName}`;
+            container.innerHTML = "<div class='loader'>Загрузка...</div>";
 
             try {
-                const response = await fetch(fullUrl);
+                const response = await fetch(RAW_BASE_URL + fileName);
                 if (!response.ok) throw new Error('404');
 
                 const html = await response.text();
@@ -191,19 +182,17 @@
                     <div class='loader'>
                         <strong>Материал не найден</strong><br>
                         <small style="display:block; margin-top:10px; color:red">
-                            Путь: ${folder}/${fileName}
+                            Файл: country/${fileName}
                         </small>
                     </div>`;
             }
         }
 
-        // Кнопка Назад
         document.getElementById('back').onclick = () => {
             renderMainPage();
             window.scrollTo(0, 0);
         };
 
-        // Увеличение фото во весь экран
         const overlay = document.getElementById('overlay');
         document.addEventListener('click', (e) => {
             if (e.target.tagName === 'IMG' && e.target.closest('#content')) {
