@@ -3,81 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wine Base</title>
+    <title>Wine Guide Zoom</title>
     <style>
-        body { font-family: sans-serif; margin: 0; background: #fff; color: #000; }
-        .header { position: sticky; top: 0; background: #fff; padding: 10px; border-bottom: 1px solid #ddd; z-index: 10; display: flex; align-items: center; }
-        #back { color: #007aff; cursor: pointer; display: none; margin-right: 15px; font-weight: bold; font-size: 20px; }
-        .cat { background: #f0f0f0; padding: 8px 15px; font-size: 12px; color: #666; text-transform: uppercase; font-weight: bold; }
-        .item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; }
-        #content { padding: 15px; line-height: 1.6; }
-        #content img { width: 100%; border-radius: 10px; margin: 10px 0; cursor: pointer; }
+        /* Общие стили */
+        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #ffffff; color: #333; }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        h1 { font-size: 24px; color: #1a1a1a; }
+        p { line-height: 1.6; font-size: 17px; }
 
-        /* ЧИСТЫЙ CSS ZOOM */
-        #zoom {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: none;
-            align-items: center; justify-content: center; z-index: 9999;
+        /* СТИЛИ КАРТИНОК В ТЕКСТЕ */
+        .content-img {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: opacity 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
-        #zoom.active { display: flex; }
-        #zoom img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .content-img:hover { opacity: 0.9; }
+
+        /* ОВЕРЛЕЙ ДЛЯ ЗУМА (Тот самый черный экран) */
+        #zoom-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none; /* Скрыт по умолчанию */
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            cursor: zoom-out;
+        }
+
+        /* КАРТИНКА В ЗУМЕ */
+        #zoom-overlay img {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
+
+        /* Кнопка закрытия */
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
-<div id="zoom" onclick="this.classList.remove('active')"><img src="" id="z-img"></div>
+    <div id="zoom-overlay" onclick="closeZoom()">
+        <span class="close-btn">&times;</span>
+        <img id="zoomed-image" src="" alt="Zoomed view">
+    </div>
 
-<div class="header">
-    <span id="back" onclick="location.reload()">‹ Назад</span>
-    <b id="title">Обучение</b>
-</div>
+    <div class="container">
+        <h1>Пример статьи с зумом</h1>
+        <p>Нажмите на картинку ниже, чтобы проверить, как работает увеличение на весь экран.</p>
 
-<div id="app">Загрузка данных...</div>
+        <img src="https://raw.githubusercontent.com/Kazakura/winebot/main/country/argentina_map.jpg" 
+             class="content-img" 
+             onclick="openZoom(this.src)" 
+             alt="Map">
 
-<script>
-    const CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&v=' + Date.now();
-    const RAW = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
-    
-    // Загрузка таблицы
-    fetch(CSV).then(r => r.text()).then(text => {
-        const rows = text.split('\n').filter(row => row.trim() !== '');
-        const table = document.getElementById('app');
-        table.innerHTML = "";
-
-        // Простой парсинг (без сложных объектов)
-        rows.slice(1).forEach(row => {
-            const cols = row.split(',');
-            if (cols.length < 2) return;
-            
-            const div = document.createElement('div');
-            div.className = 'item';
-            div.innerHTML = `<span>${cols[1]}</span><span>›</span>`;
-            div.onclick = () => {
-                table.innerHTML = "Загрузка статьи...";
-                document.getElementById('back').style.display = "block";
-                document.getElementById('title').innerText = cols[1];
-                
-                fetch(RAW + cols[2].trim() + "/" + cols[3].trim())
-                    .then(r => r.text())
-                    .then(html => {
-                        table.innerHTML = `<div id="content">${html}</div>`;
-                    });
-            };
-            table.appendChild(div);
-        });
-    }).catch(e => {
-        document.getElementById('app').innerHTML = "Ошибка: проверьте интернет или ссылку на таблицу.";
-    });
-
-    // ZOOM ЛОГИКА
-    document.addEventListener('click', (e) => {
-        if (e.target.tagName === 'IMG' && e.target.closest('#content')) {
-            const z = document.getElementById('zoom');
-            document.getElementById('z-img').src = e.target.src;
-            z.classList.add('active');
-        }
-    });
-</script>
-
-</body>
-</html>
+        <p>Этот метод использует фиксированное позиционирование (fixed) и высокий z-index, чтобы картинка перекрывала
