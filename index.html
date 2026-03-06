@@ -3,81 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Учебник Кависта</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <style>
-        :root { --bg: var(--tg-theme-bg-color, #fff); --text: var(--tg-theme-text-color, #000); --sec: var(--tg-theme-secondary-bg-color, #f0f0f0); }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; padding: 0; }
-        .header { padding: 15px; border-bottom: 1px solid var(--sec); display: flex; align-items: center; }
-        .back-btn { color: #3390ec; cursor: pointer; display: none; margin-right: 15px; font-weight: bold; }
-        .menu-item { padding: 15px; border-bottom: 1px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; }
-        #view { padding: 10px; }
-        #content img { max-width: 100%; border-radius: 10px; }
+        :root {
+            --bg: var(--tg-theme-bg-color, #ffffff);
+            --text: var(--tg-theme-text-color, #222222);
+            --hint: var(--tg-theme-hint-color, #707579);
+            --link: var(--tg-theme-link-color, #3390ec);
+            --sec: var(--tg-theme-secondary-bg-color, #f4f4f5);
+        }
+        body { background: var(--bg); color: var(--text); font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; }
+        
+        /* Шапка учебника */
+        .header { position: sticky; top: 0; background: var(--bg); padding: 15px; border-bottom: 1px solid var(--sec); z-index: 10; display: flex; align-items: center; }
+        .back-btn { color: var(--link); cursor: pointer; display: none; font-size: 24px; margin-right: 15px; }
+        
+        /* Меню оглавления */
+        .chapter-title { background: var(--sec); padding: 10px 15px; font-weight: bold; font-size: 14px; color: var(--hint); text-transform: uppercase; }
+        .menu-item { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Стиль самой статьи (Учебника) */
+        #content { padding: 20px; line-height: 1.6; font-size: 18px; max-width: 600px; margin: 0 auto; }
+        #content h1, #content h2 { color: #800020; /* Винный цвет заголовков */ }
+        #content img { width: 100%; border-radius: 12px; margin: 20px 0; cursor: zoom-in; }
+        #content blockquote { border-left: 4px solid #800020; margin: 20px 0; padding: 10px 20px; background: var(--sec); font-style: italic; }
+
+        /* Полноэкранное фото */
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; display: none; align-items: center; justify-content: center; }
+        #overlay img { max-width: 98%; max-height: 98%; }
     </style>
 </head>
 <body>
+    <div id="overlay"><img></div>
     <div class="header">
-        <span id="back" class="back-btn">← Назад</span>
-        <strong id="head-title">WineLeaf</strong>
+        <span id="back" class="back-btn">‹</span>
+        <strong id="head-title">Оглавление</strong>
     </div>
-    <div id="view">Загрузка данных...</div>
+    <div id="view">Загрузка учебника...</div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        // Твоя ссылка
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv';
+        const RAW_BASE_URL = 'https://raw.githubusercontent.com/Kazakura/winebot/main/lessons/';
 
         let rawData = [];
-
         tg.expand();
 
         Papa.parse(SHEET_URL, {
-            download: true,
-            header: true,
+            download: true, header: true,
             complete: (results) => {
-                rawData = results.data.filter(r => r.Category); // Убираем пустые
-                if (rawData.length === 0) {
-                    document.getElementById('view').innerHTML = "Таблица пуста или заголовки (Category, Title, Content) неверны.";
-                } else {
-                    renderMenu();
-                }
-            },
-            error: (err) => {
-                document.getElementById('view').innerHTML = "Ошибка связи с Google: " + err;
+                rawData = results.data.filter(r => r.Category);
+                renderChapters();
             }
         });
 
-        function renderMenu() {
+        function renderChapters() {
             const container = document.getElementById('view');
             container.innerHTML = "";
             document.getElementById('back').style.display = "none";
-            const categories = [...new Set(rawData.map(item => item.Category))];
-            categories.forEach(cat => {
-                const div = document.createElement('div');
-                div.className = "menu-item";
-                div.innerHTML = `<span>📂 ${cat}</span> <span>❯</span>`;
-                div.onclick = () => renderCategory(cat);
-                container.appendChild(div);
+            document.getElementById('head-title').innerText = "Учебник Кависта";
+
+            const chapters = [...new Set(rawData.map(item => item.Category))];
+            chapters.forEach(chap => {
+                const header = document.createElement('div');
+                header.className = "chapter-title";
+                header.innerText = chap;
+                container.appendChild(header);
+
+                rawData.filter(i => i.Category === chap).forEach(lesson => {
+                    const div = document.createElement('div');
+                    div.className = "menu-item";
+                    div.innerHTML = `<span>${lesson.Title}</span> <span style="color:var(--hint)">›</span>`;
+                    div.onclick = () => loadLesson(lesson.File, lesson.Title);
+                    container.appendChild(div);
+                });
             });
         }
 
-        function renderCategory(catName) {
+        async function loadLesson(file, title) {
             const container = document.getElementById('view');
-            container.innerHTML = "";
-            document.getElementById('back').style.display = "inline";
-            rawData.filter(i => i.Category === catName).forEach(art => {
-                const div = document.createElement('div');
-                div.className = "menu-item";
-                div.innerHTML = `<span>📄 ${art.Title}</span>`;
-                div.onclick = () => {
-                    container.innerHTML = `<div id="content">${marked.parse(art.Content || '')}</div>`;
-                };
-                container.appendChild(div);
-            });
+            document.getElementById('back').style.display = "block";
+            document.getElementById('head-title').innerText = title;
+            container.innerHTML = "<div style='padding:20px'>Открываем главу...</div>";
+
+            try {
+                const res = await fetch(RAW_BASE_URL + file);
+                const html = await res.text();
+                container.innerHTML = `<div id="content">${html}</div>`;
+                window.scrollTo(0, 0);
+            } catch (e) {
+                container.innerHTML = "<div style='padding:20px'>Урок еще в разработке...</div>";
+            }
         }
 
-        document.getElementById('back').onclick = () => renderMenu();
+        document.getElementById('back').onclick = () => renderChapters();
+
+        // Увеличение картинок
+        const overlay = document.getElementById('overlay');
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName === 'IMG' && e.target.closest('#content')) {
+                overlay.querySelector('img').src = e.target.src;
+                overlay.style.display = 'flex';
+            }
+        });
+        overlay.onclick = () => overlay.style.display = 'none';
     </script>
 </body>
 </html>
