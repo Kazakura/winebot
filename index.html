@@ -3,99 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wine</title>
     <style>
-        body { font-family: sans-serif; margin: 0; background: white; color: black; }
-        .nav { position: sticky; top: 0; background: #eee; padding: 10px; display: flex; align-items: center; border-bottom: 1px solid #ccc; z-index: 10; }
-        #back-btn { display: none; margin-right: 15px; color: blue; cursor: pointer; font-weight: bold; font-size: 20px; }
-        .cat-title { background: #f4f4f4; padding: 5px 15px; font-size: 12px; color: #777; font-weight: bold; }
-        .menu-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; cursor: pointer; }
-        #view { padding: 15px; line-height: 1.6; }
-        #view img { width: 100%; border-radius: 8px; margin: 10px 0; }
-        /* Слой для зума */
-        #zoom-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; align-items: center; justify-content: center; z-index: 1000; }
-        #zoom-layer img { max-width: 100%; max-height: 100%; }
+        body { font-family: sans-serif; padding: 20px; background: #fff; color: #000; }
+        .btn { display: block; padding: 15px; background: #007aff; color: #fff; text-align: center; border-radius: 8px; margin-bottom: 10px; text-decoration: none; cursor: pointer; }
+        #content img { width: 100%; border-radius: 10px; cursor: zoom-in; }
+        #zoom { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:none; align-items:center; justify-content:center; z-index:9999; }
+        #zoom img { max-width:100%; max-height:100%; }
     </style>
 </head>
 <body>
 
-<div id="zoom-layer" onclick="this.style.display='none'"><img src="" id="big-img"></div>
+    <div id="zoom" onclick="this.style.display='none'"><img src="" id="zimg"></div>
+    <div id="root">Загрузка...</div>
 
-<div class="nav">
-    <span id="back-btn" onclick="renderMenu()">‹ Назад</span>
-    <b id="main-title">Обучение</b>
-</div>
+    <script>
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&v=' + Date.now();
+        const GH = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
 
-<div id="view">Загрузка...</div>
-
-<script>
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&v=' + Math.random();
-    const GH_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
-    let localData = [];
-
-    // Загрузка таблицы
-    fetch(CSV_URL)
-        .then(res => res.text())
-        .then(text => {
-            const lines = text.split('\n');
-            const headers = lines[0].split(',').map(h => h.trim());
-            localData = lines.slice(1).map(line => {
-                const cols = line.split(',');
-                let obj = {};
-                headers.forEach((h, i) => obj[h] = cols[i] ? cols[i].trim() : "");
-                return obj;
-            }).filter(i => i.Title);
-            renderMenu();
-        })
-        .catch(err => { document.getElementById('view').innerHTML = "Ошибка: " + err; });
-
-    // Меню
-    function renderMenu() {
-        const v = document.getElementById('view');
-        v.innerHTML = "";
-        document.getElementById('back-btn').style.display = "none";
-        document.getElementById('main-title').innerText = "Обучение";
-
-        const cats = [...new Set(localData.map(i => i.Category))].filter(c => c);
-        cats.forEach(c => {
-            const h = document.createElement('div');
-            h.className = 'cat-title'; h.innerText = c;
-            v.appendChild(h);
-
-            localData.filter(i => i.Category === c).forEach(item => {
-                const row = document.createElement('div');
-                row.className = 'menu-item';
-                row.innerHTML = `<span>${item.Title}</span><span>›</span>`;
-                row.onclick = () => loadArticle(item.Folder, item.File, item.Title);
-                v.appendChild(row);
-            });
-        });
-    }
-
-    // Статья
-    function loadArticle(f, name, t) {
-        const v = document.getElementById('view');
-        v.innerHTML = "Загрузка статьи...";
-        document.getElementById('back-btn').style.display = "block";
-        document.getElementById('main-title').innerText = t;
-
-        fetch(GH_ROOT + f + "/" + name)
-            .then(res => res.text())
-            .then(html => {
-                v.innerHTML = html;
-                window.scrollTo(0,0);
-            })
-            .catch(() => { v.innerHTML = "Файл не найден"; });
-    }
-
-    // ЗУМ КАРТИНОК (Глобальный)
-    document.addEventListener('click', function(e) {
-        if (e.target.tagName === 'IMG' && e.target.id !== 'big-img') {
-            document.getElementById('big-img').src = e.target.src;
-            document.getElementById('zoom-layer').style.display = 'flex';
+        async function start() {
+            const root = document.getElementById('root');
+            try {
+                const res = await fetch(CSV_URL);
+                const text = await res.text();
+                const lines = text.split('\n').slice(1);
+                
+                root.innerHTML = '<h2>Меню:</h2>';
+                lines.forEach(line => {
+                    const [cat, title, folder, file] = line.split(',');
+                    if (!title) return;
+                    const b = document.createElement('div');
+                    b.className = 'btn';
+                    b.innerText = title.trim();
+                    b.onclick = () => load(folder.trim(), file.trim());
+                    root.appendChild(b);
+                });
+            } catch (e) {
+                root.innerHTML = 'Ошибка загрузки CSV: ' + e.message;
+            }
         }
-    });
-</script>
 
+        async function load(f, name) {
+            const root = document.getElementById('root');
+            root.innerHTML = 'Загрузка статьи...';
+            try {
+                const res = await fetch(`${GH}${f}/${name}`);
+                const html = await res.text();
+                root.innerHTML = `<div onclick="start()" style="color:blue; margin-bottom:10px;">← Назад</div><div id="content">${html}</div>`;
+            } catch (e) {
+                root.innerHTML = 'Ошибка файла: ' + e.message;
+            }
+        }
+
+        // ЗУМ
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName === 'IMG' && e.target.id !== 'zimg') {
+                document.getElementById('zimg').src = e.target.src;
+                document.getElementById('zoom').style.display = 'flex';
+            }
+        });
+
+        start();
+    </script>
 </body>
 </html>
