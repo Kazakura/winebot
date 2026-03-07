@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Wine Textbook</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wine Guide Pro</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -16,28 +16,51 @@
         body { 
             background: var(--bg); color: var(--text); 
             font-family: -apple-system, sans-serif; 
-            margin: 0; padding: 0;
-            /* УБРАЛИ touch-action: none, чтобы работал нативный зум */
+            margin: 0; padding: 0; overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
         }
-        /* Хедер фиксируем, чтобы он не уплывал при зуме */
         .header { 
             position: sticky; top: 0; background: var(--bg); 
             padding: 10px 15px; border-bottom: 1px solid var(--sec); 
             z-index: 1000; display: flex; align-items: center; height: 45px;
         }
         #back { color: var(--link); cursor: pointer; display: none; font-size: 30px; margin-right: 15px; font-weight: bold; }
-        #title { font-size: 17px; font-weight: 600; flex: 1; }
+        #title { font-size: 17px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+        /* МЕНЮ */
         .cat-v { background: var(--sec); padding: 8px 15px; font-size: 11px; color: var(--hint); text-transform: uppercase; font-weight: bold; }
         .row-v { padding: 18px 15px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; background: var(--bg); }
+        .row-v:active { background: var(--sec); }
 
+        /* КОНТЕНТ */
         #content { padding: 20px; line-height: 1.6; font-size: 18px; }
-        #content img { width: 100%; border-radius: 12px; margin: 15px 0; display: block; }
-        
+        #content img { width: 100%; border-radius: 12px; margin: 15px 0; display: block; cursor: zoom-in; }
+
+        /* УЛУЧШЕННЫЙ ЗУМ */
+        #zoom-wrap { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.98); z-index: 10000; 
+            display: none; touch-action: none; overflow: hidden;
+        }
+        #zoom-wrap.active { display: block; }
+        #zoom-img { 
+            position: absolute; width: 100%; height: 100%; 
+            object-fit: contain; will-change: transform;
+            transition: transform 0.1s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        .close-zoom { 
+            position: absolute; top: 30px; right: 20px; 
+            color: white; font-size: 40px; z-index: 10001; cursor: pointer; 
+        }
         .status-v { padding: 60px 20px; text-align: center; color: var(--hint); }
     </style>
 </head>
 <body>
+
+    <div id="zoom-wrap">
+        <span class="close-zoom" onclick="closeZoom()">&times;</span>
+        <img src="" id="zoom-img">
+    </div>
 
     <div class="header">
         <span id="back" onclick="showMain()">‹</span>
@@ -48,7 +71,6 @@
 
     <script>
         const tg = window.Telegram.WebApp;
-        // Твоя ссылка на таблицу
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&v=' + Date.now();
         const GITHUB_BASE = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
         
@@ -102,7 +124,27 @@
             } catch(e) { app.innerHTML = "Файл не найден"; }
         }
 
-        init();
-    </script>
-</body>
-</html>
+        // --- ГЕОМЕТРИЯ ЗУМА ---
+        const wrap = document.getElementById('zoom-wrap');
+        const zImg = document.getElementById('zoom-img');
+        let scale = 1, startDist = 0, currentScale = 1;
+
+        document.addEventListener('click', e => {
+            if (e.target.tagName === 'IMG' && e.target.closest('#content')) {
+                zImg.src = e.target.src;
+                wrap.classList.add('active');
+                scale = 1;
+                zImg.style.transform = `scale(1)`;
+                if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+            }
+        });
+
+        wrap.addEventListener('touchstart', e => {
+            if (e.touches.length === 2) {
+                startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            }
+        });
+
+        wrap.addEventListener('touchmove', e => {
+            if (e.touches.length === 2) {
+                const dist
