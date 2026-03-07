@@ -13,151 +13,80 @@
             --link: var(--tg-theme-link-color, #3390ec);
             --sec: var(--tg-theme-secondary-bg-color, #f4f4f5);
         }
-        body { background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; padding: 0; overflow-x: hidden; }
+        body { background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; padding: 0; }
         .header { position: sticky; top: 0; background: var(--bg); padding: 10px 15px; border-bottom: 1px solid var(--sec); z-index: 1000; display: flex; align-items: center; height: 45px; }
-        #back { color: var(--link); cursor: pointer; display: none; font-size: 35px; margin-right: 15px; font-weight: bold; line-height: 1; }
+        #back { color: var(--link); cursor: pointer; display: none; font-size: 30px; margin-right: 15px; font-weight: bold; }
+        
         .cat-v { background: var(--sec); padding: 8px 15px; font-size: 11px; color: var(--hint); text-transform: uppercase; font-weight: bold; }
         .row-v { padding: 18px 15px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; background: var(--bg); }
+        
         #content { padding: 20px; line-height: 1.6; font-size: 18px; }
         #content img { width: 100%; border-radius: 12px; margin: 15px 0; display: block; }
-        
-        /* ЗУМ */
-        #zoom-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 99999; display: none; touch-action: none; }
-        #zoom-img { position: absolute; width: 100%; height: 100%; object-fit: contain; will-change: transform; }
-        .close-zoom { position: absolute; top: 30px; right: 20px; color: white; font-size: 45px; z-index: 100001; cursor: pointer; }
 
-        .status-v { padding: 60px 20px; text-align: center; color: var(--hint); font-size: 14px; }
-        .error-msg { color: #ff3b30; font-family: monospace; font-size: 12px; margin-top: 10px; }
+        /* ЗУМ */
+        #zoom-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 10000; display: none; touch-action: none; }
+        #zoom-img { width: 100%; height: 100%; object-fit: contain; will-change: transform; transition: transform 0.1s ease-out; }
+        .close-zoom { position: absolute; top: 30px; right: 20px; color: #fff; font-size: 40px; z-index: 10001; }
+
+        /* ОТЛАДКА */
+        #debug { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; color: #0f0; font-size: 10px; font-family: monospace; max-height: 100px; overflow: auto; z-index: 10002; padding: 5px; opacity: 0.8; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <div id="zoom-wrap"><span class="close-zoom" onclick="closeZoom()">&times;</span><img src="" id="zoom-img"></div>
+<div id="debug">Лог системы:</div>
 
-    <div class="header">
-        <span id="back" onclick="showMain()">‹</span>
-        <div id="title">Обучение</div>
-    </div>
+<div id="zoom-wrap" onclick="closeZoom()">
+    <span class="close-zoom">&times;</span>
+    <img src="" id="zoom-img">
+</div>
 
-    <div id="app-view">
-        <div class="status-v" id="status-text">Загрузка данных...</div>
-    </div>
+<div class="header">
+    <span id="back" onclick="showMain()">‹</span>
+    <div id="title">Wine Guide</div>
+</div>
 
-    <script>
-        const tg = window.Telegram.WebApp;
-        // Твоя ссылка (Проверь её!)
-        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv';
-        const GITHUB_BASE = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
-        
-        let database = [];
+<div id="app-view" style="padding-bottom: 100px;">
+    <div style="text-align:center; padding: 50px; color: #888;">Загрузка...</div>
+</div>
+
+<script>
+    const log = (msg) => { document.getElementById('debug').innerHTML += '<br>' + msg; };
+    const tg = window.Telegram.WebApp;
+    // Твоя CSV ссылка
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv';
+    const GITHUB_BASE = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
+    
+    let db = [];
+
+    async function start() {
+        log('1. Запуск системы...');
         tg.expand();
+        tg.ready();
 
-        async function init() {
-            const status = document.getElementById('status-text');
-            try {
-                const res = await fetch(SHEET_URL + '&cache=' + Date.now());
-                if (!res.ok) throw new Error('Google Sheets вернул ошибку ' + res.status);
-                
-                const text = await res.text();
-                // Разбиваем на строки и убираем пустые
-                const rows = text.split(/\r?\n/).filter(r => r.trim() !== '');
-                
-                if (rows.length < 2) throw new Error('В таблице нет данных (только заголовок или пусто)');
-
-                database = rows.slice(1).map(row => {
-                    // Используем регулярку, чтобы запятые внутри кавычек не ломали структуру
-                    const cols = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || row.split(',');
-                    const clean = (val) => val ? val.replace(/^"|"$/g, '').trim() : "";
-                    
-                    return {
-                        cat: clean(cols[0]),
-                        name: clean(cols[1]),
-                        file: clean(cols[2]),
-                        folder: clean(cols[3])
-                    };
-                }).filter(i => i.name && i.file);
-
-                if (database.length === 0) throw new Error('Не удалось распознать строки таблицы');
-                showMain();
-            } catch (e) {
-                status.innerHTML = `<div>Ошибка загрузки:</div><div class="error-msg">${e.message}</div>`;
-            }
-        }
-
-        function showMain() {
-            const app = document.getElementById('app-view');
-            app.innerHTML = "";
-            document.getElementById('back').style.display = "none";
-            document.getElementById('title').innerText = "Обучение";
+        try {
+            log('2. Запрос к Google Sheets...');
+            const response = await fetch(SHEET_URL + '&v=' + Date.now());
+            if (!response.ok) throw new Error('Ошибка сети: ' + response.status);
             
-            const cats = [...new Set(database.map(i => i.cat))];
-            cats.forEach(cat => {
-                const head = document.createElement('div');
-                head.className = 'cat-v'; head.innerText = cat || "Общее";
-                app.appendChild(head);
-                
-                database.filter(i => i.cat === cat).forEach(item => {
-                    const row = document.createElement('div');
-                    row.className = 'row-v';
-                    row.innerHTML = `<span>${item.name}</span><span style="opacity:0.3">›</span>`;
-                    row.onclick = () => openContent(item.folder, item.file, item.name);
-                    app.appendChild(row);
-                });
-            });
+            const text = await response.text();
+            log('3. Данные получены, парсинг...');
+            
+            const rows = text.split('\n').map(r => r.trim()).filter(r => r);
+            db = rows.slice(1).map(row => {
+                const c = row.split(','); // Category, Title, File, Folder
+                return { cat: c[0], name: c[1], file: c[2], folder: c[3] };
+            }).filter(i => i.name && i.file);
+
+            log('4. Загружено строк: ' + db.length);
+            showMain();
+        } catch (e) {
+            log('ОШИБКА: ' + e.message);
+            document.getElementById('app-view').innerHTML = '<div style="color:red; padding:20px;">Ошибка: ' + e.message + '</div>';
         }
+    }
 
-        async function openContent(folder, file, name) {
-            const app = document.getElementById('app-view');
-            app.innerHTML = "<div class='status-v'>Загрузка...</div>";
-            document.getElementById('back').style.display = "block";
-            document.getElementById('title').innerText = name;
-            const url = `${GITHUB_BASE}${folder}/${file}`;
-            try {
-                const res = await fetch(url);
-                if (!res.ok) throw new Error('404');
-                const html = await res.text();
-                app.innerHTML = `<div id="content">${html}</div>`;
-                window.scrollTo(0,0);
-            } catch(e) { 
-                app.innerHTML = `<div class="status-v">Файл не найден:<br><small>${url}</small></div>`; 
-            }
-        }
-
-        // ПЛАВНЫЙ ЗУМ (JS + CSS)
-        const wrap = document.getElementById('zoom-wrap');
-        const zImg = document.getElementById('zoom-img');
-        let scale = 1, startDist = 0;
-
-        document.addEventListener('click', e => {
-            if (e.target.tagName === 'IMG' && e.target.closest('#content')) {
-                zImg.src = e.target.src;
-                wrap.style.display = 'block';
-                scale = 1;
-                zImg.style.transform = `scale(1)`;
-            }
-        });
-
-        wrap.addEventListener('touchstart', e => {
-            if (e.touches.length === 2) startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-        });
-
-        wrap.addEventListener('touchmove', e => {
-            if (e.touches.length === 2) {
-                const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                let newScale = (dist / startDist) * scale;
-                newScale = Math.min(Math.max(newScale, 1), 5);
-                zImg.style.transform = `scale(${newScale})`;
-            }
-        });
-
-        wrap.addEventListener('touchend', e => {
-            const transform = window.getComputedStyle(zImg).transform;
-            if (transform && transform !== 'none') scale = parseFloat(transform.split(',')[0].replace('matrix(', ''));
-        });
-
-        function closeZoom() { wrap.style.display = 'none'; }
-
-        init();
-    </script>
-</body>
-</html>
+    function showMain() {
+        const app = document.getElementById('app-view');
+        app.innerHTML = "";
+        document.getElementById('back').style.display = "none";
