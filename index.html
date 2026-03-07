@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wine Guide Professional</title>
+    <title>Wine Guide Pro</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -16,7 +16,7 @@
         body { 
             background: var(--bg); color: var(--text); 
             font-family: -apple-system, sans-serif; 
-            margin: 0; padding: 0; 
+            margin: 0; padding: 0; overflow-x: hidden;
             -webkit-tap-highlight-color: transparent;
         }
         .header { 
@@ -24,40 +24,33 @@
             padding: 10px 15px; border-bottom: 1px solid var(--sec); 
             z-index: 1000; display: flex; align-items: center; height: 45px;
         }
-        #back { color: var(--link); cursor: pointer; display: none; font-size: 30px; margin-right: 15px; line-height: 1; font-weight: bold; }
+        #back { color: var(--link); cursor: pointer; display: none; font-size: 30px; margin-right: 15px; font-weight: bold; }
         #title { font-size: 17px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         /* МЕНЮ */
         .cat-v { background: var(--sec); padding: 8px 15px; font-size: 11px; color: var(--hint); text-transform: uppercase; font-weight: bold; }
-        .row-v { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; background: var(--bg); align-items: center; }
-        .row-v:active { background: var(--sec); }
+        .row-v { padding: 18px 15px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; background: var(--bg); }
 
         /* КОНТЕНТ */
         #content { padding: 20px; line-height: 1.6; font-size: 18px; }
-        #content img { 
-            width: 100% !important; height: auto !important; 
-            border-radius: 12px; margin: 15px 0; 
-            display: block; cursor: pointer;
-        }
+        #content img { width: 100%; border-radius: 12px; margin: 15px 0; display: block; cursor: zoom-in; }
 
-        /* УМНЫЙ ЗУМ (OVERLAY) */
+        /* СУПЕР-ЗУМ СЛОЙ */
         #zoom-wrap { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.95); z-index: 99999; 
-            display: none; align-items: center; justify-content: center; 
-            overflow: hidden;
+            background: rgba(0,0,0,0.98); z-index: 99999; 
+            display: none; overflow: hidden; touch-action: none;
         }
-        #zoom-wrap.active { display: flex; }
+        #zoom-wrap.active { display: block; }
         #zoom-img { 
-            max-width: 100%; max-height: 100%; 
-            transition: transform 0.1s ease-out; 
-            transform-origin: center;
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; object-fit: contain;
+            transform-origin: 0 0; will-change: transform;
         }
         .close-zoom { 
             position: absolute; top: 30px; right: 20px; 
-            color: white; font-size: 35px; z-index: 100001; cursor: pointer; 
+            color: white; font-size: 40px; z-index: 100001; cursor: pointer; line-height: 1;
         }
-
         .status-v { padding: 60px 20px; text-align: center; color: var(--hint); }
     </style>
 </head>
@@ -73,38 +66,27 @@
         <div id="title">Обучение</div>
     </div>
 
-    <div id="app-view"><div class="status-v">Синхронизация...</div></div>
+    <div id="app-view"><div class="status-v">Загрузка...</div></div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&t=' + Date.now();
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&v=' + Date.now();
         const GITHUB_BASE = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
         
         let database = [];
         tg.expand();
-        tg.ready();
 
         async function init() {
             try {
                 const res = await fetch(SHEET_URL);
                 const text = await res.text();
                 const rows = text.split('\n').filter(r => r.trim() !== '');
-                
-                // Парсинг по твоим полям: Category, Title, File, Folder
                 database = rows.slice(1).map(row => {
                     const cols = row.split(',').map(c => c.trim());
-                    return {
-                        cat: cols[0],
-                        name: cols[1],
-                        file: cols[2],
-                        folder: cols[3]
-                    };
+                    return { cat: cols[0], name: cols[1], file: cols[2], folder: cols[3] };
                 }).filter(i => i.name && i.file);
-                
                 showMain();
-            } catch (e) {
-                document.getElementById('app-view').innerHTML = "<div class='status-v'>Ошибка загрузки таблицы</div>";
-            }
+            } catch (e) { document.getElementById('app-view').innerHTML = "Ошибка данных"; }
         }
 
         function showMain() {
@@ -112,13 +94,11 @@
             app.innerHTML = "";
             document.getElementById('back').style.display = "none";
             document.getElementById('title').innerText = "Обучение";
-            
             const categories = [...new Set(database.map(i => i.cat))];
             categories.forEach(cat => {
                 const head = document.createElement('div');
                 head.className = 'cat-v'; head.innerText = cat || "Разное";
                 app.appendChild(head);
-                
                 database.filter(i => i.cat === cat).forEach(item => {
                     const row = document.createElement('div');
                     row.className = 'row-v';
@@ -134,32 +114,60 @@
             app.innerHTML = "<div class='status-v'>Загрузка...</div>";
             document.getElementById('back').style.display = "block";
             document.getElementById('title').innerText = name;
-            
             try {
                 const res = await fetch(`${GITHUB_BASE}${folder}/${file}`);
                 const html = await res.text();
                 app.innerHTML = `<div id="content">${html}</div>`;
                 window.scrollTo(0,0);
-            } catch(e) { 
-                app.innerHTML = `<div class='status-v'>Файл не найден:<br>${folder}/${file}</div>`; 
-            }
+            } catch(e) { app.innerHTML = "Файл не найден"; }
         }
 
-        // ЛОГИКА ЗУМА
-        document.addEventListener('click', function(e) {
+        // --- ЛОГИКА ЖЕСТОВ (PINCH TO ZOOM) ---
+        const wrap = document.getElementById('zoom-wrap');
+        const img = document.getElementById('zoom-img');
+        let scale = 1, lastScale = 1, startX = 0, startY = 0, x = 0, y = 0, lastX = 0, lastY = 0;
+
+        document.addEventListener('click', e => {
             if (e.target.tagName === 'IMG' && e.target.closest('#content')) {
-                const wrap = document.getElementById('zoom-wrap');
-                const img = document.getElementById('zoom-img');
                 img.src = e.target.src;
                 wrap.classList.add('active');
-                if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+                resetZoom();
             }
         });
 
-        function closeZoom() {
-            document.getElementById('zoom-wrap').classList.remove('active');
-            document.getElementById('zoom-img').style.transform = "scale(1)";
+        function resetZoom() {
+            scale = 1; x = 0; y = 0;
+            updateTransform();
         }
+
+        function updateTransform() {
+            img.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+        }
+
+        function closeZoom() { wrap.classList.remove('active'); }
+
+        // Обработка касаний
+        wrap.addEventListener('touchstart', e => {
+            if (e.touches.length === 2) {
+                lastScale = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            } else if (e.touches.length === 1) {
+                startX = e.touches[0].pageX - lastX;
+                startY = e.touches[0].pageY - lastY;
+            }
+        });
+
+        wrap.addEventListener('touchmove', e => {
+            if (e.touches.length === 2) {
+                const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                scale *= dist / lastScale;
+                lastScale = dist;
+            } else if (e.touches.length === 1 && scale > 1) {
+                x = e.touches[0].pageX - startX;
+                y = e.touches[0].pageY - startY;
+                lastX = x; lastY = y;
+            }
+            updateTransform();
+        });
 
         init();
     </script>
