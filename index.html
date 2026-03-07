@@ -1,124 +1,167 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wine Guide</title>
+    <title>Wine Guide Professional</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; margin: 0; background: #fff; color: #000; -webkit-tap-highlight-color: transparent; }
-        .header { position: sticky; top: 0; background: #fff; padding: 10px; border-bottom: 1px solid #eee; display: flex; align-items: center; z-index: 100; height: 45px; }
-        #back { color: #007aff; cursor: pointer; display: none; font-size: 25px; margin-right: 15px; font-weight: bold; padding: 5px; }
-        .category { background: #f4f4f5; padding: 8px 15px; font-size: 11px; color: #888; text-transform: uppercase; font-weight: bold; }
-        .item { padding: 18px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; cursor: pointer; background: #fff; }
-        .item:active { background: #f0f0f0; }
-        #content { padding: 15px; line-height: 1.6; font-size: 18px; }
-        #content img { width: 100%; border-radius: 12px; margin: 15px 0; display: block; cursor: zoom-in; }
-
-        /* ЗУМ СЛОЙ */
-        #zoom-layer {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); display: none;
-            align-items: center; justify-content: center; z-index: 10000;
+        :root {
+            --bg: var(--tg-theme-bg-color, #ffffff);
+            --text: var(--tg-theme-text-color, #222222);
+            --hint: var(--tg-theme-hint-color, #707579);
+            --link: var(--tg-theme-link-color, #3390ec);
+            --sec: var(--tg-theme-secondary-bg-color, #f4f4f5);
         }
-        #zoom-layer.active { display: flex; }
-        #zoom-layer img { max-width: 98%; max-height: 98%; object-fit: contain; }
-        
-        .loading { padding: 50px; text-align: center; color: #999; }
+        body { 
+            background: var(--bg); color: var(--text); 
+            font-family: -apple-system, sans-serif; 
+            margin: 0; padding: 0; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        .header { 
+            position: sticky; top: 0; background: var(--bg); 
+            padding: 10px 15px; border-bottom: 1px solid var(--sec); 
+            z-index: 1000; display: flex; align-items: center; height: 45px;
+        }
+        #back { color: var(--link); cursor: pointer; display: none; font-size: 30px; margin-right: 15px; line-height: 1; font-weight: bold; }
+        #title { font-size: 17px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* МЕНЮ */
+        .cat-v { background: var(--sec); padding: 8px 15px; font-size: 11px; color: var(--hint); text-transform: uppercase; font-weight: bold; }
+        .row-v { padding: 16px; border-bottom: 0.5px solid var(--sec); cursor: pointer; display: flex; justify-content: space-between; background: var(--bg); align-items: center; }
+        .row-v:active { background: var(--sec); }
+
+        /* КОНТЕНТ */
+        #content { padding: 20px; line-height: 1.6; font-size: 18px; }
+        #content img { 
+            width: 100% !important; height: auto !important; 
+            border-radius: 12px; margin: 15px 0; 
+            display: block; cursor: pointer;
+        }
+
+        /* УМНЫЙ ЗУМ (OVERLAY) */
+        #zoom-wrap { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.95); z-index: 99999; 
+            display: none; align-items: center; justify-content: center; 
+            overflow: hidden;
+        }
+        #zoom-wrap.active { display: flex; }
+        #zoom-img { 
+            max-width: 100%; max-height: 100%; 
+            transition: transform 0.1s ease-out; 
+            transform-origin: center;
+        }
+        .close-zoom { 
+            position: absolute; top: 30px; right: 20px; 
+            color: white; font-size: 35px; z-index: 100001; cursor: pointer; 
+        }
+
+        .status-v { padding: 60px 20px; text-align: center; color: var(--hint); }
     </style>
 </head>
 <body>
 
-<div id="zoom-layer" onclick="this.classList.remove('active')">
-    <img src="" id="zoom-img">
-</div>
+    <div id="zoom-wrap">
+        <span class="close-zoom" onclick="closeZoom()">&times;</span>
+        <img src="" id="zoom-img">
+    </div>
 
-<div class="header">
-    <span id="back" onclick="showMenu()">‹ Назад</span>
-    <b id="title">Обучение</b>
-</div>
+    <div class="header">
+        <span id="back" onclick="showMain()">‹</span>
+        <div id="title">Обучение</div>
+    </div>
 
-<div id="main"><div class="loading">Загрузка данных...</div></div>
+    <div id="app-view"><div class="status-v">Синхронизация...</div></div>
 
-<script>
-    const tg = window.Telegram.WebApp;
-    // Твоя ссылка на таблицу
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&v=' + Date.now();
-    const GH_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
-    
-    let db = [];
-    tg.expand();
-
-    // 1. ЗАГРУЗКА И ПАРСИНГ (Под поля: Category, Title, File, Folder)
-    fetch(CSV_URL).then(r => r.text()).then(text => {
-        const rows = text.split('\n').filter(r => r.trim() !== '');
+    <script>
+        const tg = window.Telegram.WebApp;
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&t=' + Date.now();
+        const GITHUB_BASE = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
         
-        db = rows.slice(1).map(row => {
-            const cols = row.split(',').map(c => c.trim());
-            return {
-                category: cols[0] || "Разное",
-                title: cols[1] || "",
-                file: cols[2] || "",
-                folder: cols[3] || ""
-            };
-        }).filter(i => i.title && i.file); // Оставляем только рабочие строки
+        let database = [];
+        tg.expand();
+        tg.ready();
 
-        if (db.length > 0) showMenu();
-        else document.getElementById('main').innerHTML = "Таблица пуста или не опубликована как CSV";
-    }).catch(e => {
-        document.getElementById('main').innerHTML = "Ошибка связи: " + e;
-    });
-
-    // 2. МЕНЮ
-    function showMenu() {
-        const m = document.getElementById('main');
-        m.innerHTML = "";
-        document.getElementById('back').style.display = "none";
-        document.getElementById('title').innerText = "Обучение";
-
-        const categories = [...new Set(db.map(i => i.category))];
-        categories.forEach(cat => {
-            const h = document.createElement('div');
-            h.className = 'category'; h.innerText = cat;
-            m.appendChild(h);
-            
-            db.filter(i => i.category === cat).forEach(item => {
-                const d = document.createElement('div');
-                d.className = 'item';
-                // Привязываем данные к кнопке
-                d.onclick = () => openArt(item.folder, item.file, item.title);
-                d.innerHTML = `<span>${item.title}</span><span style="color:#ccc">›</span>`;
-                m.appendChild(d);
-            });
-        });
-    }
-
-    // 3. ОТКРЫТИЕ СТАТЬИ
-    function openArt(folder, file, title) {
-        const m = document.getElementById('main');
-        m.innerHTML = "<div class='loading'>Загрузка контента...</div>";
-        document.getElementById('back').style.display = "block";
-        document.getElementById('title').innerText = title;
-
-        // Прямой путь к файлу: ROOT + Folder + / + File
-        const url = `${GH_ROOT}${folder}/${file}`;
-        
-        fetch(url).then(r => r.text()).then(html => {
-            m.innerHTML = `<div id="content">${html}</div>`;
-            window.scrollTo(0,0);
-        }).catch(() => { m.innerHTML = "Файл не найден по адресу: " + url; });
-    }
-
-    // 4. МАСШТАБИРОВАНИЕ (ЗУМ)
-    document.addEventListener('click', function(e) {
-        if (e.target.tagName === 'IMG' && e.target.id !== 'zoom-img') {
-            const layer = document.getElementById('zoom-layer');
-            document.getElementById('zoom-img').src = e.target.src;
-            layer.classList.add('active');
-            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+        async function init() {
+            try {
+                const res = await fetch(SHEET_URL);
+                const text = await res.text();
+                const rows = text.split('\n').filter(r => r.trim() !== '');
+                
+                // Парсинг по твоим полям: Category, Title, File, Folder
+                database = rows.slice(1).map(row => {
+                    const cols = row.split(',').map(c => c.trim());
+                    return {
+                        cat: cols[0],
+                        name: cols[1],
+                        file: cols[2],
+                        folder: cols[3]
+                    };
+                }).filter(i => i.name && i.file);
+                
+                showMain();
+            } catch (e) {
+                document.getElementById('app-view').innerHTML = "<div class='status-v'>Ошибка загрузки таблицы</div>";
+            }
         }
-    });
-</script>
 
+        function showMain() {
+            const app = document.getElementById('app-view');
+            app.innerHTML = "";
+            document.getElementById('back').style.display = "none";
+            document.getElementById('title').innerText = "Обучение";
+            
+            const categories = [...new Set(database.map(i => i.cat))];
+            categories.forEach(cat => {
+                const head = document.createElement('div');
+                head.className = 'cat-v'; head.innerText = cat || "Разное";
+                app.appendChild(head);
+                
+                database.filter(i => i.cat === cat).forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'row-v';
+                    row.innerHTML = `<span>${item.name}</span><span style="opacity:0.2">›</span>`;
+                    row.onclick = () => openContent(item.folder, item.file, item.name);
+                    app.appendChild(row);
+                });
+            });
+        }
+
+        async function openContent(folder, file, name) {
+            const app = document.getElementById('app-view');
+            app.innerHTML = "<div class='status-v'>Загрузка...</div>";
+            document.getElementById('back').style.display = "block";
+            document.getElementById('title').innerText = name;
+            
+            try {
+                const res = await fetch(`${GITHUB_BASE}${folder}/${file}`);
+                const html = await res.text();
+                app.innerHTML = `<div id="content">${html}</div>`;
+                window.scrollTo(0,0);
+            } catch(e) { 
+                app.innerHTML = `<div class='status-v'>Файл не найден:<br>${folder}/${file}</div>`; 
+            }
+        }
+
+        // ЛОГИКА ЗУМА
+        document.addEventListener('click', function(e) {
+            if (e.target.tagName === 'IMG' && e.target.closest('#content')) {
+                const wrap = document.getElementById('zoom-wrap');
+                const img = document.getElementById('zoom-img');
+                img.src = e.target.src;
+                wrap.classList.add('active');
+                if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+            }
+        });
+
+        function closeZoom() {
+            document.getElementById('zoom-wrap').classList.remove('active');
+            document.getElementById('zoom-img').style.transform = "scale(1)";
+        }
+
+        init();
+    </script>
 </body>
 </html>
