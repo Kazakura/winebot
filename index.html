@@ -6,28 +6,16 @@
     <title>Wine Guide</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; margin: 0; background: #fff; color: #000; -webkit-tap-highlight-color: transparent; user-select: none; }
+        body { font-family: -apple-system, sans-serif; margin: 0; background: #fff; color: #000; -webkit-tap-highlight-color: transparent; }
         .header { position: sticky; top: 0; background: #fff; padding: 10px; border-bottom: 1px solid #eee; display: flex; align-items: center; z-index: 100; height: 45px; }
         #back { color: #007aff; cursor: pointer; display: none; font-size: 25px; margin-right: 15px; font-weight: bold; padding: 5px; }
-        
-        .category { background: #f4f4f5; padding: 8px 15px; font-size: 12px; color: #888; text-transform: uppercase; font-weight: bold; }
-        
-        /* КНОПКИ (Сделаны крупнее для удобства нажатия) */
-        .item { 
-            padding: 18px 15px; 
-            border-bottom: 1px solid #eee; 
-            display: flex; 
-            justify-content: space-between; 
-            cursor: pointer;
-            background: #fff;
-            active: background: #f0f0f0;
-        }
+        .category { background: #f4f4f5; padding: 8px 15px; font-size: 11px; color: #888; text-transform: uppercase; font-weight: bold; }
+        .item { padding: 18px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; cursor: pointer; background: #fff; }
         .item:active { background: #f0f0f0; }
+        #content { padding: 15px; line-height: 1.6; font-size: 18px; }
+        #content img { width: 100%; border-radius: 12px; margin: 15px 0; display: block; cursor: zoom-in; }
 
-        #content { padding: 15px; line-height: 1.6; font-size: 17px; user-select: text; }
-        #content img { width: 100%; border-radius: 8px; margin: 10px 0; display: block; }
-
-        /* ЗУМ */
+        /* ЗУМ СЛОЙ */
         #zoom-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); display: none;
@@ -54,25 +42,32 @@
 
 <script>
     const tg = window.Telegram.WebApp;
+    // Твоя ссылка на таблицу
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQDwPMQ0AWNNo9AmFEDogcfbpzIqioSgkb0FCMeaOvpIpArW_n-7HIRmWDMdRDjwfSriPADz3b0RqL/pub?output=csv&v=' + Date.now();
     const GH_ROOT = 'https://raw.githubusercontent.com/Kazakura/winebot/main/';
     
     let db = [];
     tg.expand();
-    tg.ready();
 
-    // 1. ЗАГРУЗКА
+    // 1. ЗАГРУЗКА И ПАРСИНГ (Под поля: Category, Title, File, Folder)
     fetch(CSV_URL).then(r => r.text()).then(text => {
-        const rows = text.split('\n');
-        const head = rows[0].split(',').map(h => h.trim());
+        const rows = text.split('\n').filter(r => r.trim() !== '');
+        
         db = rows.slice(1).map(row => {
-            const cols = row.split(',');
-            let obj = {};
-            head.forEach((h, i) => obj[h] = cols[i] ? cols[i].trim() : "");
-            return obj;
-        }).filter(i => i.Title);
-        showMenu();
-    }).catch(() => { document.getElementById('main').innerHTML = "Ошибка сети"; });
+            const cols = row.split(',').map(c => c.trim());
+            return {
+                category: cols[0] || "Разное",
+                title: cols[1] || "",
+                file: cols[2] || "",
+                folder: cols[3] || ""
+            };
+        }).filter(i => i.title && i.file); // Оставляем только рабочие строки
+
+        if (db.length > 0) showMenu();
+        else document.getElementById('main').innerHTML = "Таблица пуста или не опубликована как CSV";
+    }).catch(e => {
+        document.getElementById('main').innerHTML = "Ошибка связи: " + e;
+    });
 
     // 2. МЕНЮ
     function showMenu() {
@@ -81,31 +76,49 @@
         document.getElementById('back').style.display = "none";
         document.getElementById('title').innerText = "Обучение";
 
-        const cats = [...new Set(db.map(i => i.Category))].filter(c => c);
-        cats.forEach(c => {
+        const categories = [...new Set(db.map(i => i.category))];
+        categories.forEach(cat => {
             const h = document.createElement('div');
-            h.className = 'category'; h.innerText = c;
+            h.className = 'category'; h.innerText = cat;
             m.appendChild(h);
             
-            db.filter(i => i.Category === c).forEach(item => {
+            db.filter(i => i.category === cat).forEach(item => {
                 const d = document.createElement('div');
                 d.className = 'item';
-                // Сохраняем данные прямо в атрибуты элемента, чтобы скрипт их видел
-                d.setAttribute('data-folder', item.Folder);
-                d.setAttribute('data-file', item.File);
-                d.setAttribute('data-title', item.Title);
-                d.innerHTML = `<span>${item.Title}</span><span style="color:#ccc">›</span>`;
+                // Привязываем данные к кнопке
+                d.onclick = () => openArt(item.folder, item.file, item.title);
+                d.innerHTML = `<span>${item.title}</span><span style="color:#ccc">›</span>`;
                 m.appendChild(d);
             });
         });
     }
 
-    // 3. СТАТЬЯ
-    function openArt(f, file, t) {
+    // 3. ОТКРЫТИЕ СТАТЬИ
+    function openArt(folder, file, title) {
         const m = document.getElementById('main');
         m.innerHTML = "<div class='loading'>Загрузка контента...</div>";
         document.getElementById('back').style.display = "block";
-        document.getElementById('title').innerText = t;
+        document.getElementById('title').innerText = title;
 
-        fetch(GH_ROOT + f + "/" + file).then(r => r.text()).then(html => {
+        // Прямой путь к файлу: ROOT + Folder + / + File
+        const url = `${GH_ROOT}${folder}/${file}`;
+        
+        fetch(url).then(r => r.text()).then(html => {
             m.innerHTML = `<div id="content">${html}</div>`;
+            window.scrollTo(0,0);
+        }).catch(() => { m.innerHTML = "Файл не найден по адресу: " + url; });
+    }
+
+    // 4. МАСШТАБИРОВАНИЕ (ЗУМ)
+    document.addEventListener('click', function(e) {
+        if (e.target.tagName === 'IMG' && e.target.id !== 'zoom-img') {
+            const layer = document.getElementById('zoom-layer');
+            document.getElementById('zoom-img').src = e.target.src;
+            layer.classList.add('active');
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+        }
+    });
+</script>
+
+</body>
+</html>
